@@ -1,7 +1,10 @@
 import { app, shell, BrowserWindow, ipcMain } from 'electron'
+import { dbOps, initDb } from './db';
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
+
+
 
 function createWindow() {
   // Create the browser window.
@@ -39,6 +42,29 @@ function createWindow() {
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
 app.whenReady().then(() => {
+  try {
+    initDb();
+  } catch (err) {
+    console.error("Database initialization failed:", err);
+  }
+
+  ipcMain.handle('get-entities', async () => {
+    try {
+      return dbOps.getEntities();
+    } catch (err) {
+      console.error("Error getting entities:", err);
+      throw err;
+    }
+  });
+
+  ipcMain.handle('create-entity', async (event, data) => {
+    try {
+      return dbOps.createEntity(data);
+    } catch (err) {
+      console.error("Error creating entity:", err);
+      throw err;
+    }
+  });
   // Set app user model id for windows
   electronApp.setAppUserModelId('com.electron')
 
