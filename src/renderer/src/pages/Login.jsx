@@ -39,7 +39,7 @@ export default function Login() {
           <div className="space-y-2">
             <label className="text-xs font-bold text-slate-400 uppercase">Kullanıcı Adı</label>
             <input 
-              className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full bg-slate-50 dark:bg-slate-900 dark:text-white border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="Örn: Ahmet" 
               value={isim}
               onChange={(e) => setIsim(e.target.value)}
@@ -50,7 +50,7 @@ export default function Login() {
           <div className="space-y-2">
             <label className="text-xs font-bold text-slate-400 uppercase">Giriş Yetkisi / Rol</label>
             <select 
-              className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full bg-slate-50 dark:bg-slate-900 dark:text-white border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
               value={rol}
               onChange={(e) => setRol(e.target.value)}
             >

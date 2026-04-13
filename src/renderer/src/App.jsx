@@ -1,5 +1,6 @@
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { ThemeProvider } from './contexts/ThemeContext';
 
 // Sayfalarımızı İçeri Aktarıyoruz
 import Login from './pages/Login';
@@ -54,8 +55,10 @@ function MainApp() {
 // Tüm uygulamayı AuthProvider ile sarmalıyoruz ki her bileşen `user` verisine ulaşabilsin
 export default function App() {
   return (
-    <AuthProvider>
-      <MainApp />
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <MainApp />
+      </AuthProvider>
+    </ThemeProvider>
   );
 }
