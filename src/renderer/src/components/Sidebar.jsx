@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Menu, X, Users, LayoutDashboard, LogOut, Sun, Moon } from 'lucide-react';
+import { Menu, X, Users, LayoutDashboard, LogOut, Sun, Moon, Package } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -12,7 +12,8 @@ export default function Sidebar() {
   // Menüde görünecek bağlantılar
   const menuItems = [
     { adres: '/', etiket: 'Panel', ikon: <LayoutDashboard size={20} /> },
-    { adres: '/musteriler', etiket: 'Müşteriler', ikon: <Users size={20} /> }
+    { adres: '/musteriler', etiket: 'Müşteriler', ikon: <Users size={20} /> },
+    { adres: '/tedarikciler', etiket: 'Tedarikçiler', ikon: <Package size={20} /> }
   ];
 
   return (
@@ -58,9 +59,11 @@ export default function Sidebar() {
          {/* Tema Değiştirme Butonu */}
          <button 
            onClick={toggleTheme} 
-           className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-sm font-medium"
+           className="group w-full flex items-center gap-3 p-3 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800/50 transition-colors duration-200 text-sm font-medium"
          >
-           {isDarkMode ? <Sun size={20} className="text-yellow-400" /> : <Moon size={20} className="text-slate-600" />}
+           <div className="transition-transform duration-200 group-hover:scale-110">
+             {isDarkMode ? <Sun size={20} className="text-yellow-400" /> : <Moon size={20} className="text-slate-600 dark:text-slate-400" />}
+           </div>
            {isSidebarOpen && (isDarkMode ? 'Gündüz Modu' : 'Gece Modu')}
          </button>
 
@@ -75,9 +78,11 @@ export default function Sidebar() {
          {/* Çıkış Butonu */}
         <button 
            onClick={logout} 
-           className="w-full flex items-center gap-3 p-3 rounded-xl bg-red-50 text-red-600 hover:bg-red-100 dark:bg-red-900/10 dark:hover:bg-red-900/30 transition-colors text-sm font-medium"
+           className="group w-full flex items-center gap-3 p-3 rounded-xl bg-red-50 text-red-600 hover:bg-red-100 dark:bg-red-500/10 dark:text-red-400 dark:hover:bg-red-500/20 transition-colors duration-200 text-sm font-medium"
         >
-          <LogOut size={20} />
+          <div className="transition-transform duration-200 group-hover:scale-110">
+             <LogOut size={20} />
+          </div>
           {isSidebarOpen && 'Çıkış Yap'}
         </button>
       </div>

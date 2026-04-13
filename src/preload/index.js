@@ -1,10 +1,17 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
 
-// Custom APIs for renderer
+// İleride Cloud API'e çevrilecek olan veri iletişim katmanı
 const api = {
-  getEntities: () => ipcRenderer.invoke('get-entities'),
-  createEntity: (data) => ipcRenderer.invoke('create-entity', data)
+  auth: {
+    login: (credentials) => ipcRenderer.invoke('api:auth:login', credentials)
+  },
+  customers: {
+    getAll: () => ipcRenderer.invoke('api:customers:getAll'),
+    create: (data) => ipcRenderer.invoke('api:customers:create', data),
+    update: (data) => ipcRenderer.invoke('api:customers:update', data),
+    delete: (id) => ipcRenderer.invoke('api:customers:delete', id)
+  }
 }
 
 // Use `contextBridge` APIs to expose Electron APIs to

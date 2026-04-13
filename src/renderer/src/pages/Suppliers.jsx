@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Plus, X, Phone, AlignLeft, Search, Pencil, Trash2 } from 'lucide-react';
 
-export default function Customers() {
-  const [musteriler, setMusteriler] = useState([]);
+export default function Suppliers() {
+  const [tedarikciler, setTedarikciler] = useState([]);
   const [modalAcik, setModalAcik] = useState(false);
   const [aramaMetni, setAramaMetni] = useState("");
   const [hataMesaji, setHataMesaji] = useState("");
@@ -10,15 +10,15 @@ export default function Customers() {
   // Eğer edit moddaysak bu state'e ID kaydederiz
   const [duzenlenecekId, setDuzenlenecekId] = useState(null);
 
-  // Yeni/Düzenlenecek kayıt (Kayıt type her zaman Customer)
-  const bosForm = { title: '', phone: '', type: 'Customer', address: '' };
+  // Yeni/Düzenlenecek kayıt (Kayıt type her zaman Supplier)
+  const bosForm = { title: '', phone: '', type: 'Supplier', address: '' };
   const [kayitFormu, setKayitFormu] = useState(bosForm);
 
   const verileriGetir = async () => {
     try {
       const dbVerileri = await window.api.customers.getAll();
-      // Yalnızca Customer tipindeki kayıtları filtrele
-      setMusteriler(dbVerileri.filter(item => item.type === 'Customer'));
+      // Yalnızca Supplier tipindeki kayıtları filtrele
+      setTedarikciler(dbVerileri.filter(item => item.type === 'Supplier'));
     } catch (err) {
       console.error("Veriler çekilemedi:", err);
     }
@@ -29,7 +29,6 @@ export default function Customers() {
   }, []);
 
   const telefonFormatla = (value) => {
-    // Sadece rakamları al
     const numbers = value.replace(/[^\d]/g, '');
     let formatted = '';
     if (numbers.length > 0) formatted += numbers.substring(0, 1);
@@ -57,10 +56,8 @@ export default function Customers() {
 
     try {
       if (duzenlenecekId) {
-         // Güncelleme İşlemi
          await window.api.customers.update({ ...kayitFormu, id: duzenlenecekId });
       } else {
-         // Yeni Kayıt İşlemi
          await window.api.customers.create(kayitFormu);
       }
       
@@ -75,7 +72,7 @@ export default function Customers() {
   };
 
   const kayitSil = async (id, title) => {
-    if(window.confirm(`"${title}" isimli müşteriyi silmek istediğinizden emin misiniz?`)) {
+    if(window.confirm(`"${title}" isimli tedarikçiyi silmek istediğinizden emin misiniz?`)) {
       try {
          await window.api.customers.delete(id);
          verileriGetir();
@@ -85,9 +82,9 @@ export default function Customers() {
     }
   };
 
-  const duzenlemeYenilikYap = (musteri) => {
-    setDuzenlenecekId(musteri.id);
-    setKayitFormu({ title: musteri.title, phone: musteri.phone, type: 'Customer', address: musteri.address || '' });
+  const duzenlemeYenilikYap = (tedarikci) => {
+    setDuzenlenecekId(tedarikci.id);
+    setKayitFormu({ title: tedarikci.title, phone: tedarikci.phone, type: 'Supplier', address: tedarikci.address || '' });
     setModalAcik(true);
   };
 
@@ -98,7 +95,7 @@ export default function Customers() {
     setModalAcik(true);
   };
 
-  const filtrelenmisMusteriler = musteriler.filter(m => 
+  const filtrelenmisTedarikciler = tedarikciler.filter(m => 
     m.title.toLowerCase().includes(aramaMetni.toLowerCase()) || 
     (m.phone && m.phone.includes(aramaMetni))
   );
@@ -108,12 +105,12 @@ export default function Customers() {
       <header className="mb-6 flex justify-between items-center bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800">
         <div>
           <h2 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
-            Müşteriler
+            Tedarikçiler
             <span className="text-xs bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 px-2 py-1 rounded-full border border-slate-200 dark:border-slate-700">
-              Toplam {musteriler.length}Kayıt
+              Toplam {tedarikciler.length}Kayıt
             </span>
           </h2>
-          <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">Sadece size ödeme yapacak kişileri / Müşterileri yönetin.</p>
+          <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">Sizin ödeme yaptığınız kişileri / Kurumları yönetin.</p>
         </div>
         
         <button 
@@ -123,7 +120,7 @@ export default function Customers() {
            <div className="transition-transform duration-200 group-hover:scale-110">
              <Plus size={20} />
            </div>
-           Yeni Müşteri Ekle
+           Yeni Tedarikçi Ekle
         </button>
       </header>
 
@@ -133,7 +130,7 @@ export default function Customers() {
           </div>
           <input 
              type="text" 
-             placeholder="Müşteriler içinde ara..." 
+             placeholder="Tedarikçiler içinde ara..." 
              className="w-full bg-white dark:bg-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 rounded-xl pl-11 pr-4 py-3 outline-none focus:ring-2 focus:ring-blue-500 shadow-sm text-sm"
              value={aramaMetni}
              onChange={(e) => setAramaMetni(e.target.value)}
@@ -152,11 +149,11 @@ export default function Customers() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800/50">
-                  {filtrelenmisMusteriler.length === 0 && (
-                     <tr><td colSpan="4" className="p-12 text-center text-slate-400 italic">Müşteri bulunamadı.</td></tr>
+                  {filtrelenmisTedarikciler.length === 0 && (
+                     <tr><td colSpan="4" className="p-12 text-center text-slate-400 italic">Tedarikçi bulunamadı.</td></tr>
                   )}
 
-                  {filtrelenmisMusteriler.map(m => (
+                  {filtrelenmisTedarikciler.map(m => (
                     <tr key={m.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/30 transition-colors group">
                       
                       <td className="px-6 py-4">
@@ -170,7 +167,7 @@ export default function Customers() {
                       </td>
                       
                       <td className="px-6 py-4 text-right">
-                         <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400 text-sm">
+                         <span className="font-mono font-bold text-red-600 dark:text-red-400 text-sm">
                             0,00 ₺
                          </span>
                       </td>
@@ -198,7 +195,7 @@ export default function Customers() {
                
                <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-800/30">
                   <h3 className="font-bold text-slate-900 dark:text-white text-lg">
-                     {duzenlenecekId ? 'Müşteriyi Düzenle' : '+ Yeni Müşteri'}
+                     {duzenlenecekId ? 'Tedarikçiyi Düzenle' : '+ Yeni Tedarikçi'}
                   </h3>
                   <button onClick={() => setModalAcik(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800">
                      <X size={20} />

@@ -7,6 +7,7 @@ import Login from './pages/Login';
 import Layout from './components/Layout';
 import Dashboard from './pages/Dashboard';
 import Customers from './pages/Customers';
+import Suppliers from './pages/Suppliers';
 
 // Route Koruyucu: Eğer giriş yapılmadıysa kişiyi zorla Login Ekranına atar
 function KorumaliAlan({ children }) {
@@ -45,6 +46,7 @@ function MainApp() {
           {/* İç Sayfalarımız (Layout içindeki Outlet alanında görünecekler) */}
           <Route index element={<Dashboard />} /> {/* Ana sayfa (Panel) */}
           <Route path="musteriler" element={<Customers />} /> {/* Müşteriler sayfası */}
+          <Route path="tedarikciler" element={<Suppliers />} /> {/* Tedarikçiler sayfası */}
         </Route>
 
       </Routes>

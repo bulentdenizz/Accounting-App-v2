@@ -7,12 +7,22 @@ export function AuthProvider({ children }) {
   // Aktif kullanıcı bilgisini tutan State. null ise kimse giriş yapmamış demektir.
   const [user, setUser] = useState(null);
 
-  // Giriş Yapma Fonksiyonu
-  const login = (kullaniciAdi, rol) => {
-    setUser({
-      ad: kullaniciAdi,
-      rol: rol // 'yonetici' veya 'isci'
-    });
+  // Giriş Yapma Fonksiyonu (Artık veritabanını sorgular)
+  const login = async (kullaniciAdi) => {
+    try {
+      // IPC köprüsünden SQLite veritabanına istek atılır (Yarın burası fetch('api.com/login') olabilir)
+      const dbUser = await window.api.auth.login({ isim: kullaniciAdi });
+      
+      if (dbUser) {
+        setUser({ ad: dbUser.isim, rol: dbUser.rol });
+        return { basarili: true };
+      } else {
+        return { basarili: false, mesaj: "Kullanıcı bulunamadı!" };
+      }
+    } catch (err) {
+      console.error(err);
+      return { basarili: false, mesaj: "Sistem hatası!" };
+    }
   };
 
   // Çıkış Yapma Fonksiyonu

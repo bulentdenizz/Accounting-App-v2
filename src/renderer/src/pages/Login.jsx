@@ -2,21 +2,26 @@ import { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 
 export default function Login() {
-  const { login } = useAuth(); // AuthContext'ten fonksiyonumuzu alıyoruz
+  const { login } = useAuth(); 
   
   // Kutulara girilen yazıları tuttuğumuz değişkenler (State)
   const [isim, setIsim] = useState('');
-  const [rol, setRol] = useState('isci');
+  const [hata, setHata] = useState(''); // Ekranda hata göstermek için
 
-  // Forma tıklandığında çalışacak olan fonksiyon
-  const girisYapButtonTetiklendi = (e) => {
-    e.preventDefault(); // Sayfanın yenilenmesini engeller
-    if(isim.length < 3) {
-        alert("Lütfen geçerli bir isim girin");
+  // Forma tıklandığında çalışacak olan asenkron fonksiyon
+  const girisYapButtonTetiklendi = async (e) => {
+    e.preventDefault(); 
+    setHata('');
+    if(isim.trim().length < 3) {
+        setHata("Lütfen geçerli bir isim girin");
         return;
     }
-    // Context'e başarıyla giriş yapıldığını bildiriyoruz
-    login(isim, rol); 
+    
+    // Veritabanını sorgulamak için login isteği atıyoruz
+    const sonuc = await login(isim); 
+    if(!sonuc.basarili) {
+       setHata(sonuc.mesaj); // "Kullanıcı bulunamadı" vs.
+    }
   };
 
   return (
@@ -46,18 +51,11 @@ export default function Login() {
             />
           </div>
 
-          {/* Rol Seçimi */}
-          <div className="space-y-2">
-            <label className="text-xs font-bold text-slate-400 uppercase">Giriş Yetkisi / Rol</label>
-            <select 
-              className="w-full bg-slate-50 dark:bg-slate-900 dark:text-white border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
-              value={rol}
-              onChange={(e) => setRol(e.target.value)}
-            >
-              <option value="yonetici">Yönetici (Tüm Yetkiler)</option>
-              <option value="isci">Personel (Kısıtlı Yetki)</option>
-            </select>
-          </div>
+          {hata && (
+            <div className="bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 p-3 rounded-lg text-sm text-center font-medium border border-red-100 dark:border-red-900/50">
+               {hata}
+            </div>
+          )}
 
           {/* Gönder Butonu */}
           <button 
