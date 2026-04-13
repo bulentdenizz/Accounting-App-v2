@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Menu, X, Users, LayoutDashboard, LogOut, Sun, Moon, Package, Globe } from 'lucide-react';
+import { Menu, X, Users, LayoutDashboard, LogOut, Sun, Moon, Package, Globe, Banknote } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -21,7 +21,8 @@ export default function Sidebar() {
     { adres: '/', etiket: t('sidebar_dashboard'), ikon: <LayoutDashboard size={20} /> },
     { adres: '/musteriler', etiket: t('sidebar_customers'), ikon: <Users size={20} /> },
     { adres: '/tedarikciler', etiket: t('sidebar_suppliers'), ikon: <Package size={20} /> },
-    { adres: '/envanter', etiket: t('sidebar_inventory'), ikon: <Package size={20} /> }
+    { adres: '/envanter', etiket: t('sidebar_inventory'), ikon: <Package size={20} /> },
+    { adres: '/islemler', etiket: t('sidebar_transactions'), ikon: <Banknote size={20} /> }
   ];
 
   return (

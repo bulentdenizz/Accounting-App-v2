@@ -17,6 +17,10 @@ const api = {
     create: (data) => ipcRenderer.invoke('api:items:create', data),
     update: (data) => ipcRenderer.invoke('api:items:update', data),
     delete: (id) => ipcRenderer.invoke('api:items:delete', id)
+  },
+  transactions: {
+    getAll: () => ipcRenderer.invoke('api:transactions:getAll'),
+    create: (data) => ipcRenderer.invoke('api:transactions:create', data)
   }
 }
 

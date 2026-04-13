@@ -7,7 +7,7 @@ let db;
 export function initDb() {
   if (db) return db;
 
-  const dbPath = path.join(app.getPath('userData'), 'accounting_app_v3.db'); // Changed to v3 to trigger schema rebuild
+  const dbPath = path.join(app.getPath('userData'), 'accounting_app_v4.db'); // v4: Added balances
   db = new Database(dbPath);
 
   // 1. Users (Auth - Team Members) Table
@@ -28,6 +28,7 @@ export function initDb() {
       phone TEXT,
       address TEXT,
       type TEXT CHECK(type IN ('Customer', 'Supplier')) NOT NULL,
+      balance REAL DEFAULT 0,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )
   `).run();

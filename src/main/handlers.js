@@ -129,6 +129,82 @@ export function setupHandlers() {
   });
 
   // ==================
+  // TRANSACTIONS / LEDGER SERVICES
+  // ==================
+  ipcMain.handle('api:transactions:getAll', async () => {
+    try {
+      const db = getDb();
+      return db.prepare(`
+        SELECT t.*, e.title as entity_name, u.username as user_name
+        FROM transactions t
+        LEFT JOIN entities e ON t.entity_id = e.id
+        LEFT JOIN users u ON t.user_id = u.id
+        ORDER BY t.transaction_date DESC
+      `).all();
+    } catch (err) {
+      console.error("Error fetching transactions:", err);
+      throw err;
+    }
+  });
+
+  ipcMain.handle('api:transactions:create', async (event, data) => {
+    const db = getDb();
+    const transaction = db.transaction((txData) => {
+      // 1. Insert the record
+      const insertTx = db.prepare(`
+        INSERT INTO transactions (entity_id, transaction_type, amount, description, user_id)
+        VALUES (?, ?, ?, ?, ?)
+      `);
+      insertTx.run(
+        txData.entity_id,
+        txData.transaction_type,
+        txData.amount,
+        txData.description || null,
+        txData.user_id || null
+      );
+
+      // 2. Logic for Stock and Balances
+      if (txData.transaction_type === 'sale') {
+        // Sale: Stock Down, Customer Balance Up
+        if (txData.item_id && txData.quantity) {
+          db.prepare("UPDATE items SET stock_quantity = stock_quantity - ? WHERE id = ?")
+            .run(txData.quantity, txData.item_id);
+        }
+        db.prepare("UPDATE entities SET balance = balance + ? WHERE id = ?")
+          .run(txData.amount, txData.entity_id);
+
+      } else if (txData.transaction_type === 'purchase') {
+        // Purchase: Stock Up, Supplier Balance Up
+        if (txData.item_id && txData.quantity) {
+          db.prepare("UPDATE items SET stock_quantity = stock_quantity + ? WHERE id = ?")
+            .run(txData.quantity, txData.item_id);
+        }
+        db.prepare("UPDATE entities SET balance = balance + ? WHERE id = ?")
+          .run(txData.amount, txData.entity_id);
+
+      } else if (txData.transaction_type === 'payment_in') {
+        // Payment from Customer: Balance Down
+        db.prepare("UPDATE entities SET balance = balance - ? WHERE id = ?")
+          .run(txData.amount, txData.entity_id);
+
+      } else if (txData.transaction_type === 'payment_out') {
+        // Payment to Supplier: Balance Down
+        db.prepare("UPDATE entities SET balance = balance - ? WHERE id = ?")
+          .run(txData.amount, txData.entity_id);
+      }
+    });
+
+    try {
+      transaction(data);
+      return { success: true };
+    } catch (err) {
+      console.error("Atomic transaction failed:", err);
+      throw err;
+    }
+  });
+
+
+  // ==================
   // AUTH SERVICES
   // ==================
   ipcMain.handle('api:auth:login', async (event, { username }) => {

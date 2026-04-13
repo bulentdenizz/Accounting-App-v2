@@ -163,8 +163,8 @@ export default function Suppliers() {
                          {m.phone ? <><Phone size={14} /> {m.phone}</> : '-'}
                       </td>
                       <td className="px-6 py-4 text-right">
-                         <span className="font-mono font-bold text-red-600 dark:text-red-400 text-sm">
-                            $0.00
+                         <span className={`font-mono font-bold text-sm ${m.balance > 0 ? 'text-red-600' : 'text-emerald-600'}`}>
+                            {m.balance.toFixed(2)} ₺
                          </span>
                       </td>
                       <td className="px-6 py-4 text-center">
