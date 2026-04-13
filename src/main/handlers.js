@@ -203,6 +203,35 @@ export function setupHandlers() {
     }
   });
 
+  ipcMain.handle('api:transactions:delete', async (event, id) => {
+    const db = getDb();
+    // First, get the original transaction to reverse its effects
+    const tx = db.prepare("SELECT * FROM transactions WHERE id = ?").get(id);
+    if (!tx) throw new Error("Transaction not found");
+
+    const reverseTransaction = db.transaction(() => {
+      // Reverse the balance change on the entity
+      if (tx.transaction_type === 'sale' || tx.transaction_type === 'payment_in') {
+        db.prepare("UPDATE entities SET balance = balance - ? WHERE id = ?")
+          .run(tx.amount, tx.entity_id);
+      } else if (tx.transaction_type === 'purchase' || tx.transaction_type === 'payment_out') {
+        db.prepare("UPDATE entities SET balance = balance - ? WHERE id = ?")
+          .run(tx.amount, tx.entity_id);
+      }
+
+      // Delete the transaction record
+      db.prepare("DELETE FROM transactions WHERE id = ?").run(id);
+    });
+
+    try {
+      reverseTransaction();
+      return { success: true };
+    } catch (err) {
+      console.error("Delete transaction failed:", err);
+      throw err;
+    }
+  });
+
 
   // ==================
   // AUTH SERVICES
