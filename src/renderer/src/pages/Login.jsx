@@ -1,0 +1,74 @@
+import { useState } from 'react';
+import { useAuth } from '../contexts/AuthContext';
+
+export default function Login() {
+  const { login } = useAuth(); // AuthContext'ten fonksiyonumuzu alıyoruz
+  
+  // Kutulara girilen yazıları tuttuğumuz değişkenler (State)
+  const [isim, setIsim] = useState('');
+  const [rol, setRol] = useState('isci');
+
+  // Forma tıklandığında çalışacak olan fonksiyon
+  const girisYapButtonTetiklendi = (e) => {
+    e.preventDefault(); // Sayfanın yenilenmesini engeller
+    if(isim.length < 3) {
+        alert("Lütfen geçerli bir isim girin");
+        return;
+    }
+    // Context'e başarıyla giriş yapıldığını bildiriyoruz
+    login(isim, rol); 
+  };
+
+  return (
+    <div className="min-h-screen bg-slate-100 dark:bg-slate-900 flex items-center justify-center p-4">
+      {/* Giriş Kartı */}
+      <div className="bg-white dark:bg-slate-800 p-8 rounded-3xl shadow-2xl max-w-sm w-full">
+        
+        {/* Logo veya Başlık */}
+        <div className="text-center mb-8">
+          <h1 className="text-2xl font-black text-blue-600 dark:text-blue-500 tracking-tighter italic">
+            ACCOUNTING<span className="text-slate-900 dark:text-slate-100 font-light">PRO</span>
+          </h1>
+          <p className="text-slate-500 text-sm mt-2">Sisteme Giriş Yapın</p>
+        </div>
+
+        {/* Form Alanı */}
+        <form onSubmit={girisYapButtonTetiklendi} className="space-y-5">
+          
+          {/* İsim Girişi */}
+          <div className="space-y-2">
+            <label className="text-xs font-bold text-slate-400 uppercase">Kullanıcı Adı</label>
+            <input 
+              className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Örn: Ahmet" 
+              value={isim}
+              onChange={(e) => setIsim(e.target.value)}
+            />
+          </div>
+
+          {/* Rol Seçimi */}
+          <div className="space-y-2">
+            <label className="text-xs font-bold text-slate-400 uppercase">Giriş Yetkisi / Rol</label>
+            <select 
+              className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
+              value={rol}
+              onChange={(e) => setRol(e.target.value)}
+            >
+              <option value="yonetici">Yönetici (Tüm Yetkiler)</option>
+              <option value="isci">Personel (Kısıtlı Yetki)</option>
+            </select>
+          </div>
+
+          {/* Gönder Butonu */}
+          <button 
+            type="submit" 
+            className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-4 rounded-xl shadow-lg transition-transform active:scale-95"
+          >
+            Giriş Yap
+          </button>
+        </form>
+
+      </div>
+    </div>
+  );
+}
