@@ -8,9 +8,10 @@ import Layout from './components/Layout';
 import Dashboard from './pages/Dashboard';
 import Customers from './pages/Customers';
 import Suppliers from './pages/Suppliers';
+import Inventory from './pages/Inventory';
 
-// Route Koruyucu: Eğer giriş yapılmadıysa kişiyi zorla Login Ekranına atar
-function KorumaliAlan({ children }) {
+// Route guard: Redirects to Login if user is not authenticated
+function ProtectedRoute({ children }) {
   const { user } = useAuth();
   
   if (!user) {
@@ -34,19 +35,20 @@ function MainApp() {
           element={user ? <Navigate to="/" replace /> : <Login />} 
         />
 
-        {/* Uygulamanın İç Kısmı (Sadece giriş yapanlar görebilir) */}
+        {/* Protected App Area */}
         <Route 
            path="/" 
            element={
-             <KorumaliAlan>
+             <ProtectedRoute>
                <Layout />
-             </KorumaliAlan>
+             </ProtectedRoute>
            }
         >
           {/* İç Sayfalarımız (Layout içindeki Outlet alanında görünecekler) */}
           <Route index element={<Dashboard />} /> {/* Ana sayfa (Panel) */}
           <Route path="musteriler" element={<Customers />} /> {/* Müşteriler sayfası */}
           <Route path="tedarikciler" element={<Suppliers />} /> {/* Tedarikçiler sayfası */}
+          <Route path="envanter" element={<Inventory />} /> {/* Stok sayfası */}
         </Route>
 
       </Routes>

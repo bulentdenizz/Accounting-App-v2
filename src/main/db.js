@@ -7,27 +7,24 @@ let db;
 export function initDb() {
   if (db) return db;
 
-  // Veritabanı dosyasının konumu (Windows'ta AppData, Mac'te Application Support içine kurulur)
-  const dbPath = path.join(app.getPath('userData'), 'accounting_pro.db');
+  const dbPath = path.join(app.getPath('userData'), 'accounting_app_v3.db'); // Changed to v3 to trigger schema rebuild
   db = new Database(dbPath);
 
-  // 1. Kullanıcılar (Auth - Ekip Üyeleri) Tablosu
+  // 1. Users (Auth - Team Members) Table
   db.prepare(`
     CREATE TABLE IF NOT EXISTS users (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      isim TEXT UNIQUE NOT NULL,
-      rol TEXT CHECK(rol IN ('yonetici', 'isci')) NOT NULL,
-      sifre TEXT -- Gerçek projede hash tutulmalıdır
+      username TEXT UNIQUE NOT NULL,
+      role TEXT CHECK(role IN ('admin', 'staff')) NOT NULL,
+      password TEXT
     )
   `).run();
 
-  // 2. Müşteriler ve Tedarikçiler Tablosu (Cari Hesaplar)
+  // 2. Entities (Customers / Suppliers)
   db.prepare(`
     CREATE TABLE IF NOT EXISTS entities (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       title TEXT NOT NULL,
-      tax_office TEXT,
-      tax_number TEXT,
       phone TEXT,
       address TEXT,
       type TEXT CHECK(type IN ('Customer', 'Supplier')) NOT NULL,
@@ -35,45 +32,47 @@ export function initDb() {
     )
   `).run();
 
-  // 3. Stok (Ürün / Hizmet) Tablosu
+  // 3. Items (Stock / Inventory) Table
   db.prepare(`
     CREATE TABLE IF NOT EXISTS items (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      isim TEXT NOT NULL,
-      birim TEXT,
-      birim_fiyati REAL DEFAULT 0,
-      stok_miktari REAL DEFAULT 0
+      name TEXT NOT NULL,
+      supplier_id INTEGER,
+      unit TEXT,
+      unit_price REAL DEFAULT 0,
+      tax_rate REAL DEFAULT 0,
+      stock_quantity REAL DEFAULT 0,
+      FOREIGN KEY (supplier_id) REFERENCES entities(id)
     )
   `).run();
 
-  // 4. Finansal İşlemler (Faturalar, Tahsilatlar)
+  // 4. Financial Transactions (Ledger)
   db.prepare(`
     CREATE TABLE IF NOT EXISTS transactions (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       entity_id INTEGER,
-      islem_tipi TEXT CHECK(islem_tipi IN ('satis_faturasi', 'alis_faturasi', 'tahsilat', 'odeme')) NOT NULL,
-      tutar REAL NOT NULL,
-      tarih DATETIME DEFAULT CURRENT_TIMESTAMP,
-      aciklama TEXT,
-      kaydi_acan_user_id INTEGER,
+      transaction_type TEXT CHECK(transaction_type IN ('purchase', 'sale', 'payment_in', 'payment_out')) NOT NULL,
+      amount REAL NOT NULL,
+      transaction_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+      description TEXT,
+      user_id INTEGER,
       FOREIGN KEY (entity_id) REFERENCES entities(id),
-      FOREIGN KEY (kaydi_acan_user_id) REFERENCES users(id)
+      FOREIGN KEY (user_id) REFERENCES users(id)
     )
   `).run();
   
-  // Test için sisteme default bir yönetici (Admin) ekleyelim
+  // Create default admin user
   try {
-    const adminCheck = db.prepare("SELECT * FROM users WHERE isim = 'Admin'").get();
+    const adminCheck = db.prepare("SELECT * FROM users WHERE username = 'Admin'").get();
     if(!adminCheck) {
-       db.prepare("INSERT INTO users (isim, rol, sifre) VALUES ('Admin', 'yonetici', '123')").run();
+       db.prepare("INSERT INTO users (username, role, password) VALUES ('Admin', 'admin', '123')").run();
     }
   } catch(e) {
-    console.error("Test verisi eklenirken hata: ", e);
+    console.error("Error inserting default data: ", e);
   }
 
   console.log("Database initialized at:", dbPath);
   return db;
 }
 
-// Güvenli Bağlantı (Getter) Fonksiyonu
 export const getDb = () => db;

@@ -1,0 +1,161 @@
+import i18n from 'i18next';
+import { initReactI18next } from 'react-i18next';
+
+// Türkçe Sözlük
+const resources = {
+  tr: {
+    translation: {
+      "app_name_accounting": "ACCOUNTING",
+      "app_name_pro": "PRO",
+      "sidebar_dashboard": "Panel",
+      "sidebar_customers": "Müşteriler",
+      "sidebar_suppliers": "Tedarikçiler",
+      "sidebar_inventory": "Stok Yönetimi",
+      "sidebar_logout": "Çıkış Yap",
+      "sidebar_light_mode": "Gündüz Modu",
+      "sidebar_dark_mode": "Gece Modu",
+      
+      "login_title": "Sisteme Giriş Yapın",
+      "login_username": "Kullanıcı Adı",
+      "login_submit": "Giriş Yap",
+      "login_error_invalid": "Lütfen geçerli bir isim girin",
+      "login_example": "Örn: Admin",
+      
+      "customers_title": "Müşteriler",
+      "customers_desc": "Sadece size ödeme yapacak kişileri / Müşterileri yönetin.",
+      
+      "suppliers_title": "Tedarikçiler",
+      "suppliers_desc": "Sizin ödeme yaptığınız kişileri / Kurumları yönetin.",
+      "btn_new_supplier": "Yeni Tedarikçi Ekle",
+      "search_supplier": "Tedarikçiler içinde ara...",
+      "msg_no_supplier": "Tedarikçi bulunamadı.",
+      "msg_confirm_delete_supplier": "\"{{name}}\" isimli tedarikçiyi silmek istediğinizden emin misiniz?",
+      "modal_edit_supplier": "Tedarikçiyi Düzenle",
+      "modal_new_supplier": "+ Yeni Tedarikçi",
+
+      "inventory_title": "Stok / Envanter",
+      "inventory_desc": "Deponuzdaki ürünlerin miktar ve fiyatlarını takip edin.",
+      "btn_new_item": "Yeni Ürün Ekle",
+      "search_item": "Ürünler içinde ara (Barkod, isim vs.)",
+      "msg_no_item": "Ürün bulunamadı.",
+      "msg_confirm_delete_item": "\"{{name}}\" ürününü silmek istediğinizden emin misiniz?",
+      "modal_edit_item": "Ürünü Düzenle",
+      "modal_new_item": "+ Yeni Ürün",
+      "table_unit": "Birim",
+      "table_unit_price": "Birim Fiyat",
+      "table_tax_rate": "KDV (%)",
+      "table_supplier": "Tedarikçi",
+      "table_stock_qty": "Stok Miktarı",
+      "form_unit": "Satış Birimi (Adet, Kg, Lt vb.)",
+      "form_unit_price": "Birim Fiyat",
+      "form_tax_rate": "KDV Oranı (%)",
+      "form_supplier": "Gelen Tedarikçi",
+      "form_stock_qty": "Mevcut Stok Miktarı",
+
+      "record_total": "Toplam {{count}} Kayıt",
+      "btn_new_customer": "Yeni Müşteri Ekle",
+      "search_customer": "Müşteriler içinde ara...",
+      "table_name": "Unvan / İsim",
+      "table_contact": "İletişim",
+      "table_balance": "Bakiye",
+      "table_actions": "İşlemler",
+      "msg_no_customer": "Müşteri bulunamadı.",
+      "msg_confirm_delete": "\"{{name}}\" isimli müşteriyi silmek istediğinizden emin misiniz?",
+      
+      "modal_edit_customer": "Müşteriyi Düzenle",
+      "modal_new_customer": "+ Yeni Müşteri",
+      "form_name": "Ad / Soyad / Unvan",
+      "form_phone": "Telefon Numarası",
+      "form_address": "Kısa Açıklama / Adres",
+      "btn_cancel": "Vazgeç",
+      "btn_save": "Kaydet",
+      "btn_update": "Güncelle",
+      "err_empty_name": "Lütfen bir İsim/Unvan giriniz.",
+      "err_invalid_phone": "Lütfen geçerli bir telefon numarası girin: Örn: 0 555 555 5555"
+    }
+  },
+  en: {
+    translation: {
+      "app_name_accounting": "ACCOUNTING",
+      "app_name_pro": "PRO",
+      "sidebar_dashboard": "Dashboard",
+      "sidebar_customers": "Customers",
+      "sidebar_suppliers": "Suppliers",
+      "sidebar_inventory": "Inventory",
+      "sidebar_logout": "Logout",
+      "sidebar_light_mode": "Light Mode",
+      "sidebar_dark_mode": "Dark Mode",
+      
+      "login_title": "Login to System",
+      "login_username": "Username",
+      "login_submit": "Login",
+      "login_error_invalid": "Please enter a valid username",
+      "login_example": "Ex: Admin",
+      
+      "customers_title": "Customers",
+      "customers_desc": "Manage clients who purchase from you.",
+      
+      "suppliers_title": "Suppliers",
+      "suppliers_desc": "Manage institutions and people who you pay.",
+      "btn_new_supplier": "Add New Supplier",
+      "search_supplier": "Search suppliers...",
+      "msg_no_supplier": "No suppliers found.",
+      "msg_confirm_delete_supplier": "Are you sure you want to delete supplier \"{{name}}\"?",
+      "modal_edit_supplier": "Edit Supplier",
+      "modal_new_supplier": "+ New Supplier",
+
+      "inventory_title": "Stock / Inventory",
+      "inventory_desc": "Track your warehouse items, quantities, and pricing.",
+      "btn_new_item": "Add New Item",
+      "search_item": "Search items...",
+      "msg_no_item": "No items found.",
+      "msg_confirm_delete_item": "Are you sure you want to delete item \"{{name}}\"?",
+      "modal_edit_item": "Edit Item",
+      "modal_new_item": "+ New Item",
+      "table_unit": "Unit",
+      "table_unit_price": "Unit Price",
+      "table_tax_rate": "VAT (%)",
+      "table_supplier": "Supplier",
+      "table_stock_qty": "Stock Qty",
+      "form_unit": "Sales Unit (Pcs, Kg, Lt, etc.)",
+      "form_unit_price": "Unit Price",
+      "form_tax_rate": "VAT Rate (%)",
+      "form_supplier": "From Supplier",
+      "form_stock_qty": "Current Stock Qty",
+
+      "record_total": "Total {{count}} Records",
+      "btn_new_customer": "Add New Customer",
+      "search_customer": "Search customers...",
+      "table_name": "Title / Name",
+      "table_contact": "Contact",
+      "table_balance": "Balance",
+      "table_actions": "Actions",
+      "msg_no_customer": "No customers found.",
+      "msg_confirm_delete": "Are you sure you want to delete \"{{name}}\"?",
+      
+      "modal_edit_customer": "Edit Customer",
+      "modal_new_customer": "+ New Customer",
+      "form_name": "Name / Title",
+      "form_phone": "Phone Number",
+      "form_address": "Address / Description",
+      "btn_cancel": "Cancel",
+      "btn_save": "Save",
+      "btn_update": "Update",
+      "err_empty_name": "Please enter a Name/Title.",
+      "err_invalid_phone": "Please enter a valid phone number: 0 555 555 5555"
+    }
+  }
+};
+
+i18n
+  .use(initReactI18next)
+  .init({
+    resources,
+    lng: "tr", // Başlangıç dili Türkçe
+    fallbackLng: "en",
+    interpolation: {
+      escapeValue: false 
+    }
+  });
+
+export default i18n;

@@ -64,18 +64,82 @@ export function setupHandlers() {
 
 
   // ==================
-  // KULLANICI GİRİŞ (AUTH) SERVİSLERİ
+  // ITEMS / STOCK SERVICES
   // ==================
-  ipcMain.handle('api:auth:login', async (event, { isim }) => {
+  ipcMain.handle('api:items:getAll', async () => {
     try {
       const db = getDb();
-      // Gerçek bir sistemde şifre de kontrol edilir
-      const user = db.prepare("SELECT id, isim, rol FROM users WHERE isim = ? COLLATE NOCASE").get(isim);
+      // Join entities to get the supplier title
+      return db.prepare(`
+        SELECT items.*, entities.title as supplier_name 
+        FROM items 
+        LEFT JOIN entities ON items.supplier_id = entities.id 
+        ORDER BY items.id DESC
+      `).all();
+    } catch (err) {
+      console.error("Hata:", err);
+      throw err;
+    }
+  });
+
+  ipcMain.handle('api:items:create', async (event, data) => {
+    try {
+      const db = getDb();
+      const stm = db.prepare(
+        "INSERT INTO items (name, supplier_id, unit, unit_price, tax_rate, stock_quantity) VALUES (?, ?, ?, ?, ?, ?)"
+      );
+      const res = stm.run(
+        data.name, 
+        data.supplier_id || null, 
+        data.unit || 'Adet', 
+        data.unit_price || 0, 
+        data.tax_rate || 0, 
+        data.stock_quantity || 0
+      );
+      return res.lastInsertRowid;
+    } catch (err) {
+       console.error("Hata:", err);
+       throw err;
+    }
+  });
+
+  ipcMain.handle('api:items:update', async (event, data) => {
+    try {
+      const db = getDb();
+      const stm = db.prepare(
+        "UPDATE items SET name=?, supplier_id=?, unit=?, unit_price=?, tax_rate=?, stock_quantity=? WHERE id=?"
+      );
+      stm.run(data.name, data.supplier_id || null, data.unit, data.unit_price, data.tax_rate, data.stock_quantity, data.id);
+      return true;
+    } catch (err) {
+      console.error("Hata:", err);
+      throw err;
+    }
+  });
+
+  ipcMain.handle('api:items:delete', async (event, id) => {
+    try {
+      const db = getDb();
+      db.prepare("DELETE FROM items WHERE id=?").run(id);
+      return true;
+    } catch (err) {
+      console.error("Hata:", err);
+      throw err;
+    }
+  });
+
+  // ==================
+  // AUTH SERVICES
+  // ==================
+  ipcMain.handle('api:auth:login', async (event, { username }) => {
+    try {
+      const db = getDb();
+      // Real app should securely check password hashes
+      const user = db.prepare("SELECT id, username, role FROM users WHERE username = ? COLLATE NOCASE").get(username);
       
-      // Bulunduysa objeyi dön, yoksa null
       return user || null;
     } catch (err) {
-       console.error("Kullanıcı girişi hatası:", err);
+       console.error("Login verification failed:", err);
        throw err;
     }
   });

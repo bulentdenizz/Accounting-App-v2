@@ -4,37 +4,35 @@ import { createContext, useState, useContext } from 'react';
 const AuthContext = createContext();
 
 export function AuthProvider({ children }) {
-  // Aktif kullanıcı bilgisini tutan State. null ise kimse giriş yapmamış demektir.
+  // State to hold the active user info
   const [user, setUser] = useState(null);
 
-  // Giriş Yapma Fonksiyonu (Artık veritabanını sorgular)
-  const login = async (kullaniciAdi) => {
+  // Login handler
+  const login = async (username) => {
     try {
-      // IPC köprüsünden SQLite veritabanına istek atılır (Yarın burası fetch('api.com/login') olabilir)
-      const dbUser = await window.api.auth.login({ isim: kullaniciAdi });
+      // IPC call to SQLite wrapper
+      const dbUser = await window.api.auth.login({ username });
       
       if (dbUser) {
-        setUser({ ad: dbUser.isim, rol: dbUser.rol });
-        return { basarili: true };
+        setUser({ name: dbUser.username, role: dbUser.role });
+        return { success: true };
       } else {
-        return { basarili: false, mesaj: "Kullanıcı bulunamadı!" };
+        return { success: false, message: "User not found!" };
       }
     } catch (err) {
       console.error(err);
-      return { basarili: false, mesaj: "Sistem hatası!" };
+      return { success: false, message: "System error!" };
     }
   };
 
-  // Çıkış Yapma Fonksiyonu
   const logout = () => {
     setUser(null);
   };
 
-  // Diğer bileşenlere (componentlere) dağıtılacak değerler
-  const degiskenler = { user, login, logout };
+  const values = { user, login, logout };
 
   return (
-    <AuthContext.Provider value={degiskenler}>
+    <AuthContext.Provider value={values}>
       {children}
     </AuthContext.Provider>
   );
