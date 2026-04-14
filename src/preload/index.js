@@ -20,6 +20,7 @@ const api = {
   },
   transactions: {
     getAll: () => ipcRenderer.invoke('api:transactions:getAll'),
+    getItems: (id) => ipcRenderer.invoke('api:transactions:getItems', id),
     create: (data) => ipcRenderer.invoke('api:transactions:create', data),
     delete: (id) => ipcRenderer.invoke('api:transactions:delete', id)
   }

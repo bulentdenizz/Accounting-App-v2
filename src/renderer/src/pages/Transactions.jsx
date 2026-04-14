@@ -140,9 +140,11 @@ export default function Transactions() {
         </div>
         <button
           onClick={() => { setFormData(emptyForm); setErrorMessage(''); setIsModalOpen(true); }}
-          className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-5 py-3 font-semibold rounded-xl transition-all duration-200 shadow-lg shadow-blue-600/20 active:scale-95"
+          className="group flex items-center gap-2 bg-blue-50 text-blue-700 hover:bg-blue-100 dark:bg-blue-500/10 dark:text-blue-400 dark:hover:bg-blue-500/20 px-5 py-3 font-semibold rounded-xl transition-all duration-200 shadow-sm"
         >
-          <Plus size={20} />
+          <div className="transition-transform duration-200 group-hover:scale-110">
+            <Plus size={20} />
+          </div>
           {t('btn_new_transaction')}
         </button>
       </header>
@@ -157,6 +159,7 @@ export default function Transactions() {
                 <th className="px-6 py-4 font-bold">{t('table_type')}</th>
                 <th className="px-6 py-4 font-bold">{t('table_entity')}</th>
                 <th className="px-6 py-4 font-bold text-right">{t('table_amount')}</th>
+                <th className="px-6 py-4 font-bold">{t('form_due_date')}</th>
                 <th className="px-6 py-4 font-bold">Note</th>
                 <th className="px-6 py-4 font-bold text-center">{t('table_actions')}</th>
               </tr>
@@ -186,6 +189,28 @@ export default function Transactions() {
                       <span className={`font-mono font-bold text-sm ${isIncome ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500 dark:text-red-400'}`}>
                         {isIncome ? '+' : '-'}{tData.amount.toFixed(2)} ₺
                       </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      {tData.due_date ? (
+                        (() => {
+                          const today = new Date();
+                          today.setHours(0, 0, 0, 0);
+                          const due = new Date(tData.due_date);
+                          const diff = (due - today) / (1000 * 60 * 60 * 24);
+
+                          let colorClass = 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10'; // Future
+                          if (diff < 0) colorClass = 'text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-500/10'; // Overdue
+                          else if (diff <= 3) colorClass = 'text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-500/10'; // Soon
+
+                          return (
+                            <span className={`text-[10px] font-bold px-2 py-1 rounded-md ${colorClass}`}>
+                              {due.toLocaleDateString('tr-TR')}
+                            </span>
+                          );
+                        })()
+                      ) : (
+                        <span className="text-[10px] text-slate-300 dark:text-slate-600 italic">No Due</span>
+                      )}
                     </td>
                     <td className="px-6 py-4 text-xs text-slate-400 truncate max-w-[180px]">
                       {tData.description || '-'}

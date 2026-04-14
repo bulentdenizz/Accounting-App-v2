@@ -91,7 +91,30 @@ const resources = {
       "btn_save": "Kaydet",
       "btn_update": "Güncelle",
       "err_empty_name": "Lütfen bir İsim/Unvan giriniz.",
-      "err_invalid_phone": "Lütfen geçerli bir telefon numarası girin: Örn: 0 555 555 5555"
+      "err_invalid_phone": "Lütfen geçerli bir telefon numarası girin: Örn: 0 555 555 5555",
+
+      "btn_create_invoice": "Fatura Oluştur",
+      "invoice_modal_title_sale": "Satış Faturası Oluştur",
+      "invoice_modal_title_purchase": "Alış Faturası Oluştur",
+      "invoice_for": "Cari Hesap",
+      "form_due_date": "Vade Tarihi",
+      "form_quick_due": "Hızlı Vade Seçimi",
+      "form_line_items": "Fatura Kalemleri",
+      "btn_add_item": "+ Kalem Ekle",
+      "table_product": "Ürün",
+      "table_qty": "Miktar",
+      "table_unit_price_short": "Fiyat",
+      "table_tax": "KDV%",
+      "table_subtotal": "Ara Toplam",
+      "invoice_subtotal": "Ara Toplam (KDV Hariç)",
+      "invoice_tax_total": "Toplam KDV",
+      "invoice_grand_total": "Genel Toplam",
+      "err_no_items": "En az bir ürün kalemi ekleyin.",
+      "err_item_no_product": "Lütfen tüm kalemlere bir ürün adı girin.",
+      "err_item_no_qty": "Tüm kalemlerde miktar 0'dan büyük olmalıdır.",
+      "days": "Gün",
+      "custom_date": "Özel Tarih",
+      "no_due_date": "Vadesiz"
     }
   },
   en: {
@@ -182,7 +205,30 @@ const resources = {
       "btn_save": "Save",
       "btn_update": "Update",
       "err_empty_name": "Please enter a Name/Title.",
-      "err_invalid_phone": "Please enter a valid phone number: 0 555 555 5555"
+      "err_invalid_phone": "Please enter a valid phone number: 0 555 555 5555",
+
+      "btn_create_invoice": "Create Invoice",
+      "invoice_modal_title_sale": "Create Sales Invoice",
+      "invoice_modal_title_purchase": "Create Purchase Invoice",
+      "invoice_for": "Contact",
+      "form_due_date": "Due Date",
+      "form_quick_due": "Quick Due Selection",
+      "form_line_items": "Invoice Items",
+      "btn_add_item": "+ Add Item",
+      "table_product": "Product",
+      "table_qty": "Qty",
+      "table_unit_price_short": "Price",
+      "table_tax": "VAT%",
+      "table_subtotal": "Subtotal",
+      "invoice_subtotal": "Subtotal (excl. VAT)",
+      "invoice_tax_total": "Total VAT",
+      "invoice_grand_total": "Grand Total",
+      "err_no_items": "Please add at least one line item.",
+      "err_item_no_product": "Please enter a product name for all items.",
+      "err_item_no_qty": "All items must have a quantity greater than 0.",
+      "days": "Day",
+      "custom_date": "Custom Date",
+      "no_due_date": "No Due Date"
     }
   }
 };

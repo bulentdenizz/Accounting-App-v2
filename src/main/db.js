@@ -7,7 +7,7 @@ let db;
 export function initDb() {
   if (db) return db;
 
-  const dbPath = path.join(app.getPath('userData'), 'accounting_app_v4.db'); // v4: Added balances
+  const dbPath = path.join(app.getPath('userData'), 'accounting_app_v5.db'); // v5: Added due_date + transaction_items
   db = new Database(dbPath);
 
   // 1. Users (Auth - Team Members) Table
@@ -55,10 +55,27 @@ export function initDb() {
       transaction_type TEXT CHECK(transaction_type IN ('purchase', 'sale', 'payment_in', 'payment_out')) NOT NULL,
       amount REAL NOT NULL,
       transaction_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+      due_date DATETIME,
       description TEXT,
       user_id INTEGER,
       FOREIGN KEY (entity_id) REFERENCES entities(id),
       FOREIGN KEY (user_id) REFERENCES users(id)
+    )
+  `).run();
+
+  // 5. Invoice Line Items (multi-product per transaction)
+  db.prepare(`
+    CREATE TABLE IF NOT EXISTS transaction_items (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      transaction_id INTEGER NOT NULL,
+      item_id INTEGER,
+      item_name TEXT NOT NULL,
+      quantity REAL NOT NULL DEFAULT 1,
+      unit_price REAL NOT NULL DEFAULT 0,
+      tax_rate REAL NOT NULL DEFAULT 0,
+      subtotal REAL NOT NULL DEFAULT 0,
+      FOREIGN KEY (transaction_id) REFERENCES transactions(id) ON DELETE CASCADE,
+      FOREIGN KEY (item_id) REFERENCES items(id)
     )
   `).run();
   

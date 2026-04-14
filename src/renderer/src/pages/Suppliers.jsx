@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import { Plus, X, Phone, AlignLeft, Search, Pencil, Trash2 } from 'lucide-react';
+import { Plus, X, Phone, AlignLeft, Search, Pencil, Trash2, FileText } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import InvoiceModal from '../components/InvoiceModal';
 
 export default function Suppliers() {
   const { t } = useTranslation();
@@ -10,6 +11,7 @@ export default function Suppliers() {
   const [searchQuery, setSearchQuery] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [editingId, setEditingId] = useState(null);
+  const [invoiceTarget, setInvoiceTarget] = useState(null);
 
   const emptyForm = { title: '', phone: '', type: 'Supplier', address: '' };
   const [formData, setFormData] = useState(emptyForm);
@@ -168,7 +170,14 @@ export default function Suppliers() {
                          </span>
                       </td>
                       <td className="px-6 py-4 text-center">
-                         <div className="flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                         <div className="flex items-center justify-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button
+                               onClick={() => setInvoiceTarget(m)}
+                               className="p-2 text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-500/10 rounded-lg transition-colors"
+                               title={t('btn_create_invoice')}
+                            >
+                               <FileText size={18} />
+                            </button>
                             <button onClick={() => handleEdit(m)} className="p-2 text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-500/10 rounded-lg transition-colors" title={t('btn_update')}>
                                <Pencil size={18} />
                             </button>
@@ -245,6 +254,16 @@ export default function Suppliers() {
                </form>
            </div>
         </div>
+      )}
+
+      {/* Invoice Modal */}
+      {invoiceTarget && (
+        <InvoiceModal
+          entity={invoiceTarget}
+          transactionType="purchase"
+          onClose={() => setInvoiceTarget(null)}
+          onSuccess={() => { setInvoiceTarget(null); fetchData(); }}
+        />
       )}
     </div>
   );

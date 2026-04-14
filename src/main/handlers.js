@@ -23,7 +23,6 @@ export function setupHandlers() {
       const stm = db.prepare(
         "INSERT INTO entities (title, phone, type, address) VALUES (?, ?, ?, ?)"
       );
-      // Tax fields are removed as requested
       const res = stm.run(
         data.title, 
         data.phone, 
@@ -69,7 +68,6 @@ export function setupHandlers() {
   ipcMain.handle('api:items:getAll', async () => {
     try {
       const db = getDb();
-      // Join entities to get the supplier title
       return db.prepare(`
         SELECT items.*, entities.title as supplier_name 
         FROM items 
@@ -147,48 +145,99 @@ export function setupHandlers() {
     }
   });
 
+  // Get line items for a specific transaction
+  ipcMain.handle('api:transactions:getItems', async (event, transactionId) => {
+    try {
+      const db = getDb();
+      return db.prepare(`
+        SELECT ti.*, i.unit
+        FROM transaction_items ti
+        LEFT JOIN items i ON ti.item_id = i.id
+        WHERE ti.transaction_id = ?
+        ORDER BY ti.id ASC
+      `).all(transactionId);
+    } catch (err) {
+      console.error("Error fetching transaction items:", err);
+      throw err;
+    }
+  });
+
   ipcMain.handle('api:transactions:create', async (event, data) => {
     const db = getDb();
+
+    // data.items = [ { item_id, item_name, quantity, unit_price, tax_rate, subtotal }, ... ]
+    // data.due_date = ISO date string or null
+    // data.transaction_type = 'sale' | 'purchase' | 'payment_in' | 'payment_out'
+    // data.amount = total amount (sum of subtotals)
+    // data.entity_id, data.description, data.user_id
+
     const transaction = db.transaction((txData) => {
-      // 1. Insert the record
+      // 1. Insert the main transaction record
       const insertTx = db.prepare(`
-        INSERT INTO transactions (entity_id, transaction_type, amount, description, user_id)
-        VALUES (?, ?, ?, ?, ?)
+        INSERT INTO transactions (entity_id, transaction_type, amount, due_date, description, user_id)
+        VALUES (?, ?, ?, ?, ?, ?)
       `);
-      insertTx.run(
+      const txResult = insertTx.run(
         txData.entity_id,
         txData.transaction_type,
         txData.amount,
+        txData.due_date || null,
         txData.description || null,
         txData.user_id || null
       );
+      const newTxId = txResult.lastInsertRowid;
 
-      // 2. Logic for Stock and Balances
-      if (txData.transaction_type === 'sale') {
-        // Sale: Stock Down, Customer Balance Up
-        if (txData.item_id && txData.quantity) {
+      // 2. Insert line items (if any) and update stock
+      const insertItem = db.prepare(`
+        INSERT INTO transaction_items (transaction_id, item_id, item_name, quantity, unit_price, tax_rate, subtotal)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `);
+
+      if (txData.items && txData.items.length > 0) {
+        for (const lineItem of txData.items) {
+          insertItem.run(
+            newTxId,
+            lineItem.item_id || null,
+            lineItem.item_name,
+            lineItem.quantity,
+            lineItem.unit_price,
+            lineItem.tax_rate || 0,
+            lineItem.subtotal
+          );
+
+          // Update stock for each item if it references a stock item
+          if (lineItem.item_id) {
+            if (txData.transaction_type === 'sale') {
+              db.prepare("UPDATE items SET stock_quantity = stock_quantity - ? WHERE id = ?")
+                .run(lineItem.quantity, lineItem.item_id);
+            } else if (txData.transaction_type === 'purchase') {
+              db.prepare("UPDATE items SET stock_quantity = stock_quantity + ? WHERE id = ?")
+                .run(lineItem.quantity, lineItem.item_id);
+            }
+          }
+        }
+      } else if (txData.item_id && txData.quantity) {
+        // Backward compat: single item from Transactions page
+        if (txData.transaction_type === 'sale') {
           db.prepare("UPDATE items SET stock_quantity = stock_quantity - ? WHERE id = ?")
             .run(txData.quantity, txData.item_id);
-        }
-        db.prepare("UPDATE entities SET balance = balance + ? WHERE id = ?")
-          .run(txData.amount, txData.entity_id);
-
-      } else if (txData.transaction_type === 'purchase') {
-        // Purchase: Stock Up, Supplier Balance Up
-        if (txData.item_id && txData.quantity) {
+        } else if (txData.transaction_type === 'purchase') {
           db.prepare("UPDATE items SET stock_quantity = stock_quantity + ? WHERE id = ?")
             .run(txData.quantity, txData.item_id);
         }
+      }
+
+      // 3. Update entity balance
+      if (txData.transaction_type === 'sale') {
         db.prepare("UPDATE entities SET balance = balance + ? WHERE id = ?")
           .run(txData.amount, txData.entity_id);
-
+      } else if (txData.transaction_type === 'purchase') {
+        db.prepare("UPDATE entities SET balance = balance + ? WHERE id = ?")
+          .run(txData.amount, txData.entity_id);
       } else if (txData.transaction_type === 'payment_in') {
-        // Payment from Customer: Balance Down
         db.prepare("UPDATE entities SET balance = balance - ? WHERE id = ?")
           .run(txData.amount, txData.entity_id);
-
       } else if (txData.transaction_type === 'payment_out') {
-        // Payment to Supplier: Balance Down
         db.prepare("UPDATE entities SET balance = balance - ? WHERE id = ?")
           .run(txData.amount, txData.entity_id);
       }
@@ -203,13 +252,28 @@ export function setupHandlers() {
     }
   });
 
+
+
   ipcMain.handle('api:transactions:delete', async (event, id) => {
     const db = getDb();
-    // First, get the original transaction to reverse its effects
     const tx = db.prepare("SELECT * FROM transactions WHERE id = ?").get(id);
     if (!tx) throw new Error("Transaction not found");
 
     const reverseTransaction = db.transaction(() => {
+      // Reverse stock changes for all line items
+      const lineItems = db.prepare("SELECT * FROM transaction_items WHERE transaction_id = ?").all(id);
+      for (const lineItem of lineItems) {
+        if (lineItem.item_id) {
+          if (tx.transaction_type === 'sale') {
+            db.prepare("UPDATE items SET stock_quantity = stock_quantity + ? WHERE id = ?")
+              .run(lineItem.quantity, lineItem.item_id);
+          } else if (tx.transaction_type === 'purchase') {
+            db.prepare("UPDATE items SET stock_quantity = stock_quantity - ? WHERE id = ?")
+              .run(lineItem.quantity, lineItem.item_id);
+          }
+        }
+      }
+
       // Reverse the balance change on the entity
       if (tx.transaction_type === 'sale' || tx.transaction_type === 'payment_in') {
         db.prepare("UPDATE entities SET balance = balance - ? WHERE id = ?")
@@ -219,7 +283,8 @@ export function setupHandlers() {
           .run(tx.amount, tx.entity_id);
       }
 
-      // Delete the transaction record
+      // Delete line items first
+      db.prepare("DELETE FROM transaction_items WHERE transaction_id = ?").run(id);
       db.prepare("DELETE FROM transactions WHERE id = ?").run(id);
     });
 
@@ -233,15 +298,15 @@ export function setupHandlers() {
   });
 
 
+
+
   // ==================
   // AUTH SERVICES
   // ==================
   ipcMain.handle('api:auth:login', async (event, { username }) => {
     try {
       const db = getDb();
-      // Real app should securely check password hashes
       const user = db.prepare("SELECT id, username, role FROM users WHERE username = ? COLLATE NOCASE").get(username);
-      
       return user || null;
     } catch (err) {
        console.error("Login verification failed:", err);
