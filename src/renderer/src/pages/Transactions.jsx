@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import { Plus, X, Banknote, User, ArrowUpRight, ArrowDownLeft, Trash2 } from 'lucide-react';
+import { Plus, X, Banknote, User, ArrowUpRight, ArrowDownLeft, Trash2, Pencil, Printer } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import InvoiceModal from '../components/InvoiceModal';
 
 export default function Transactions() {
   const { t } = useTranslation();
@@ -9,6 +10,8 @@ export default function Transactions() {
   const [entities, setEntities] = useState([]);
   const [items, setItems] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false);
+  const [editingTx, setEditingTx] = useState(null);
   const [errorMessage, setErrorMessage] = useState("");
 
   const emptyForm = {
@@ -91,6 +94,35 @@ export default function Transactions() {
       // FIX 2: was `console.err` (typo), now `console.error`
       console.error("Save error:", err);
       setErrorMessage("Transaction failed. Check console for details.");
+    }
+  };
+
+  const handleEdit = (tx) => {
+    if (tx.transaction_type === 'sale' || tx.transaction_type === 'purchase') {
+      // Use InvoiceModal for editing multi-item invoices
+      setEditingTx(tx);
+      setIsInvoiceModalOpen(true);
+    } else {
+      // Use simple modal for payments
+      setFormData({
+        id: tx.id,
+        entity_id: tx.entity_id,
+        transaction_type: tx.transaction_type,
+        amount: tx.amount,
+        description: tx.description || ''
+      });
+      setIsModalOpen(true);
+    }
+  };
+
+  const handlePdf = async (tx) => {
+    try {
+      // Fetch full items first
+      const items = await window.api.transactions.getItems(tx.id);
+      await window.api.pdf.generate({ ...tx, items });
+    } catch (err) {
+      console.error("PDF Error:", err);
+      alert("PDF oluşturulurken bir hata oluştu.");
     }
   };
 
@@ -216,10 +248,24 @@ export default function Transactions() {
                       {tData.description || '-'}
                     </td>
                     <td className="px-6 py-4 text-center">
-                      <div className="flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button
+                          onClick={() => handlePdf(tData)}
+                          className="p-1.5 text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-500/10 rounded-lg transition-colors"
+                          title="Download PDF"
+                        >
+                          <Printer size={16} />
+                        </button>
+                        <button 
+                          onClick={() => handleEdit(tData)}
+                          className="p-1.5 text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-500/10 rounded-lg transition-colors"
+                          title="Edit"
+                        >
+                          <Pencil size={16} />
+                        </button>
                         <button
                           onClick={() => handleDelete(tData.id)}
-                          className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-colors"
+                          className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-colors"
                           title="Delete (reverses balance)"
                         >
                           <Trash2 size={16} />
@@ -368,6 +414,16 @@ export default function Transactions() {
             </form>
           </div>
         </div>
+      )}
+      {/* INVOICE MODAL (Multi-item) */}
+      {isInvoiceModalOpen && (
+        <InvoiceModal 
+          entity={entities.find(e => e.id === editingTx?.entity_id) || { title: editingTx?.entity_name }}
+          transactionType={editingTx?.transaction_type}
+          transactionData={editingTx}
+          onClose={() => { setIsInvoiceModalOpen(false); setEditingTx(null); }}
+          onSuccess={fetchData}
+        />
       )}
     </div>
   );

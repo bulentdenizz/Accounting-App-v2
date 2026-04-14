@@ -22,7 +22,11 @@ const api = {
     getAll: () => ipcRenderer.invoke('api:transactions:getAll'),
     getItems: (id) => ipcRenderer.invoke('api:transactions:getItems', id),
     create: (data) => ipcRenderer.invoke('api:transactions:create', data),
+    update: (data) => ipcRenderer.invoke('api:transactions:update', data),
     delete: (id) => ipcRenderer.invoke('api:transactions:delete', id)
+  },
+  pdf: {
+    generate: (invoice) => ipcRenderer.invoke('api:pdf:generate', invoice)
   }
 }
 

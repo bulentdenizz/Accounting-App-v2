@@ -26,7 +26,7 @@ const calcSubtotal = (qty, price, tax) => {
   return parseFloat((base * (1 + parseFloat(tax || 0) / 100)).toFixed(2));
 };
 
-export default function InvoiceModal({ entity, transactionType, onClose, onSuccess }) {
+export default function InvoiceModal({ entity, transactionType, onClose, onSuccess, transactionData }) {
   const { t } = useTranslation();
 
   const [items, setItems] = useState([]); // Stock items from DB
@@ -37,10 +37,25 @@ export default function InvoiceModal({ entity, transactionType, onClose, onSucce
   const [errorMessage, setErrorMessage] = useState('');
   const [isSaving, setIsSaving] = useState(false);
 
-  // Load stock items
+  // Load stock items and initial data if editing
   useEffect(() => {
     window.api.items.getAll().then(setItems).catch(console.error);
-  }, []);
+
+    if (transactionData) {
+      setDescription(transactionData.description || '');
+      setDueDate(transactionData.due_date ? transactionData.due_date.split('T')[0] : '');
+      
+      // Fetch line items for this transaction
+      window.api.transactions.getItems(transactionData.id)
+        .then(items => {
+          setLineItems(items.map(it => ({
+            ...it,
+            _key: Math.random() // Unique key for UI
+          })));
+        })
+        .catch(console.error);
+    }
+  }, [transactionData]);
 
   // --- Line Item Handlers ---
 
@@ -147,7 +162,13 @@ export default function InvoiceModal({ entity, transactionType, onClose, onSucce
         })),
       };
 
-      const result = await window.api.transactions.create(payload);
+      let result;
+      if (transactionData) {
+        result = await window.api.transactions.update({ ...payload, id: transactionData.id });
+      } else {
+        result = await window.api.transactions.create(payload);
+      }
+      
       if (result.success) {
         onSuccess?.();
         onClose();
@@ -161,7 +182,9 @@ export default function InvoiceModal({ entity, transactionType, onClose, onSucce
   };
 
   const isSale = transactionType === 'sale';
-  const modalTitle = isSale ? t('invoice_modal_title_sale') : t('invoice_modal_title_purchase');
+  const modalTitle = transactionData 
+    ? (isSale ? t('invoice_modal_title_edit_sale') : t('invoice_modal_title_edit_purchase'))
+    : (isSale ? t('invoice_modal_title_sale') : t('invoice_modal_title_purchase'));
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50
@@ -453,7 +476,7 @@ export default function InvoiceModal({ entity, transactionType, onClose, onSucce
                   }`}
               >
                 <FileText size={16} />
-                {isSaving ? 'Kaydediliyor...' : `${t('btn_create_invoice')} — ${grandTotal.toFixed(2)} ₺`}
+                {isSaving ? 'Kaydediliyor...' : `${transactionData ? t('btn_update') : t('btn_create_invoice')} — ${grandTotal.toFixed(2)} ₺`}
               </button>
             </div>
           </div>

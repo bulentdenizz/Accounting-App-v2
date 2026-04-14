@@ -95,7 +95,9 @@ const resources = {
 
       "btn_create_invoice": "Fatura Oluştur",
       "invoice_modal_title_sale": "Satış Faturası Oluştur",
+      "invoice_modal_title_edit_sale": "Satış Faturasını Düzenle",
       "invoice_modal_title_purchase": "Alış Faturası Oluştur",
+      "invoice_modal_title_edit_purchase": "Alış Faturasını Düzenle",
       "invoice_for": "Cari Hesap",
       "form_due_date": "Vade Tarihi",
       "form_quick_due": "Hızlı Vade Seçimi",
@@ -114,7 +116,9 @@ const resources = {
       "err_item_no_qty": "Tüm kalemlerde miktar 0'dan büyük olmalıdır.",
       "days": "Gün",
       "custom_date": "Özel Tarih",
-      "no_due_date": "Vadesiz"
+      "no_due_date": "Vadesiz",
+      "btn_print": "Yazdır / PDF",
+      "btn_update": "Güncelle"
     }
   },
   en: {
@@ -209,7 +213,9 @@ const resources = {
 
       "btn_create_invoice": "Create Invoice",
       "invoice_modal_title_sale": "Create Sales Invoice",
+      "invoice_modal_title_edit_sale": "Edit Sales Invoice",
       "invoice_modal_title_purchase": "Create Purchase Invoice",
+      "invoice_modal_title_edit_purchase": "Edit Purchase Invoice",
       "invoice_for": "Contact",
       "form_due_date": "Due Date",
       "form_quick_due": "Quick Due Selection",
@@ -228,7 +234,9 @@ const resources = {
       "err_item_no_qty": "All items must have a quantity greater than 0.",
       "days": "Day",
       "custom_date": "Custom Date",
-      "no_due_date": "No Due Date"
+      "no_due_date": "No Due Date",
+      "btn_print": "Print / PDF",
+      "btn_update": "Update"
     }
   }
 };
