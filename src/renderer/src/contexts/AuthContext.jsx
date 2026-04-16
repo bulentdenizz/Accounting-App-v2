@@ -8,20 +8,20 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
 
   // Login handler
-  const login = async (username) => {
+  const login = async (username, password) => {
     try {
       // IPC call to SQLite wrapper
-      const dbUser = await window.api.auth.login({ username });
+      const dbUser = await window.api.auth.login({ username, password });
       
       if (dbUser) {
         setUser({ name: dbUser.username, role: dbUser.role });
         return { success: true };
       } else {
-        return { success: false, message: "User not found!" };
+        return { success: false, message: 'Kullanici adi veya sifre hatali.' };
       }
     } catch (err) {
       console.error(err);
-      return { success: false, message: "System error!" };
+      return { success: false, message: 'Sistem hatasi.' };
     }
   };
 

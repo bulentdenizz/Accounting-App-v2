@@ -4,7 +4,8 @@ import { electronAPI } from '@electron-toolkit/preload'
 // İleride Cloud API'e çevrilecek olan veri iletişim katmanı
 const api = {
   auth: {
-    login: (credentials) => ipcRenderer.invoke('api:auth:login', credentials)
+    login: (credentials) => ipcRenderer.invoke('api:auth:login', credentials),
+    createUser: (payload) => ipcRenderer.invoke('api:auth:createUser', payload)
   },
   customers: {
     getAll: () => ipcRenderer.invoke('api:customers:getAll'),
@@ -21,12 +22,18 @@ const api = {
   transactions: {
     getAll: () => ipcRenderer.invoke('api:transactions:getAll'),
     getItems: (id) => ipcRenderer.invoke('api:transactions:getItems', id),
+    getOpenDocuments: (payload) => ipcRenderer.invoke('api:transactions:getOpenDocuments', payload),
+    getDueList: () => ipcRenderer.invoke('api:transactions:getDueList'),
+    getStatementByEntity: (entityId) => ipcRenderer.invoke('api:transactions:getStatementByEntity', entityId),
     create: (data) => ipcRenderer.invoke('api:transactions:create', data),
     update: (data) => ipcRenderer.invoke('api:transactions:update', data),
     delete: (id) => ipcRenderer.invoke('api:transactions:delete', id)
   },
   pdf: {
     generate: (invoice) => ipcRenderer.invoke('api:pdf:generate', invoice)
+  },
+  system: {
+    createBackup: () => ipcRenderer.invoke('api:system:createBackup')
   }
 }
 

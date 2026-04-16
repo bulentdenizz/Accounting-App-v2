@@ -1,2 +1,58 @@
 @import "tailwindcss";
 @config "../../../../tailwind.config.js";
+
+@layer base {
+  :root {
+    color-scheme: light;
+  }
+
+  .dark {
+    color-scheme: dark;
+  }
+
+  body {
+    @apply bg-slate-100 text-slate-800 antialiased;
+  }
+
+  .dark body {
+    @apply bg-slate-950 text-slate-100;
+  }
+}
+
+@layer components {
+  .fin-panel {
+    @apply bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm;
+  }
+
+  .fin-panel-header {
+    @apply px-6 py-4 border-b border-slate-100 dark:border-slate-800;
+  }
+
+  .fin-table-wrap {
+    @apply bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm overflow-hidden;
+  }
+
+  .fin-table {
+    @apply w-full text-left border-collapse;
+  }
+
+  .fin-table thead {
+    @apply bg-slate-50 dark:bg-slate-800/60 text-slate-500 dark:text-slate-400 text-[11px] uppercase tracking-wider border-b border-slate-200 dark:border-slate-800;
+  }
+
+  .fin-table th {
+    @apply px-6 py-3.5 font-semibold;
+  }
+
+  .fin-table td {
+    @apply px-6 py-3.5 text-sm;
+  }
+
+  .fin-input {
+    @apply w-full bg-slate-50 dark:bg-slate-950 dark:text-white border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500 text-sm;
+  }
+
+  .fin-muted {
+    @apply text-slate-500 dark:text-slate-400;
+  }
+}

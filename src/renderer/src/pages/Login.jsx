@@ -5,6 +5,7 @@ export default function Login() {
   const { login } = useAuth();
 
   const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
   const [errorText, setErrorText] = useState('');
 
   const handleLogin = async (e) => {
@@ -16,7 +17,12 @@ export default function Login() {
       return;
     }
 
-    const result = await login(username);
+    if (password.length < 4) {
+      setErrorText('Sifre en az 4 karakter olmali');
+      return;
+    }
+
+    const result = await login(username, password);
     if (!result.success) {
       setErrorText(result.message);
     }
@@ -45,6 +51,16 @@ export default function Login() {
               placeholder="Örn: Admin"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
+            />
+          </div>
+          <div className="space-y-2">
+            <label className="text-xs font-bold text-slate-400 uppercase">Sifre</label>
+            <input
+              type="password"
+              className="w-full bg-slate-50 dark:bg-slate-900 dark:text-white border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Sifrenizi girin"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
             />
           </div>
 

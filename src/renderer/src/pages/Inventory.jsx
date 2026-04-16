@@ -97,7 +97,7 @@ export default function Inventory() {
 
   return (
     <div className="h-full flex flex-col relative">
-      <header className="mb-6 flex justify-between items-center bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800">
+      <header className="mb-6 flex justify-between items-center fin-panel p-6">
         <div>
           <h2 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
             {t('inventory_title')}
@@ -110,7 +110,7 @@ export default function Inventory() {
         
         <button 
            onClick={openModal}
-           className="group flex items-center gap-2 bg-blue-50 text-blue-700 hover:bg-blue-100 dark:bg-blue-500/10 dark:text-blue-400 dark:hover:bg-blue-500/20 px-5 py-3 font-semibold rounded-xl transition-all duration-200 shadow-sm"
+           className="group flex items-center gap-2 bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 px-5 py-3 font-semibold rounded-xl transition-all duration-200"
         >
            <div className="transition-transform duration-200 group-hover:scale-110">
              <Plus size={20} />
@@ -126,16 +126,16 @@ export default function Inventory() {
           <input 
              type="text" 
              placeholder={t('search_item')} 
-             className="w-full bg-white dark:bg-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 rounded-xl pl-11 pr-4 py-3 outline-none focus:ring-2 focus:ring-blue-500 shadow-sm text-sm"
+             className="fin-input pl-11 pr-4"
              value={searchQuery}
              onChange={(e) => setSearchQuery(e.target.value)}
           />
       </div>
       
-      <div className="flex-1 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden flex flex-col">
+      <div className="flex-1 fin-table-wrap flex flex-col">
           <div className="overflow-x-auto flex-1">
-             <table className="w-full text-left border-collapse">
-                <thead className="bg-slate-50 dark:bg-slate-800/50 text-slate-400 dark:text-slate-500 text-[10px] uppercase tracking-widest border-b border-slate-200 dark:border-slate-800 sticky top-0 z-10">
+             <table className="fin-table">
+                <thead className="sticky top-0 z-10">
                   <tr>
                     <th className="px-6 py-4 font-bold">{t('table_name')}</th>
                     <th className="px-6 py-4 font-bold">{t('table_supplier')}</th>

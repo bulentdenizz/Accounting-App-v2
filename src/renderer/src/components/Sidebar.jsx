@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Menu, X, Users, LayoutDashboard, LogOut, Sun, Moon, Package, Globe, Banknote } from 'lucide-react';
+import { Menu, X, Users, LayoutDashboard, LogOut, Sun, Moon, Package, Globe, Banknote, CalendarClock } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -22,19 +22,20 @@ export default function Sidebar() {
     { adres: '/musteriler', etiket: t('sidebar_customers'), ikon: <Users size={20} /> },
     { adres: '/tedarikciler', etiket: t('sidebar_suppliers'), ikon: <Package size={20} /> },
     { adres: '/envanter', etiket: t('sidebar_inventory'), ikon: <Package size={20} /> },
-    { adres: '/islemler', etiket: t('sidebar_transactions'), ikon: <Banknote size={20} /> }
+    { adres: '/islemler', etiket: t('sidebar_transactions'), ikon: <Banknote size={20} /> },
+    { adres: '/vadeler', etiket: 'Vadeler', ikon: <CalendarClock size={20} /> }
   ];
 
   return (
-    <aside className={`bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex flex-col transition-all duration-300 ${isSidebarOpen ? 'w-64' : 'w-20'}`}>
+    <aside className={`bg-white/95 dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex flex-col transition-all duration-300 ${isSidebarOpen ? 'w-64' : 'w-20'}`}>
       
-      <div className={`p-6 flex items-center justify-between ${!isSidebarOpen && 'justify-center'}`}>
+      <div className={`p-5 flex items-center justify-between ${!isSidebarOpen && 'justify-center'}`}>
         {isSidebarOpen && (
-          <h1 className="text-xl font-black text-blue-600 dark:text-blue-500 tracking-tighter italic whitespace-nowrap">
+          <h1 className="text-lg font-extrabold text-slate-700 dark:text-slate-200 tracking-tight whitespace-nowrap">
             {t('app_name_accounting')}<span className="text-slate-900 dark:text-slate-100 font-light">{t('app_name_pro')}</span>
           </h1>
         )}
-        <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="p-2 rounded-lg bg-slate-100 dark:bg-slate-800 text-blue-600 dark:text-blue-400">
+        <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="p-2 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
           {isSidebarOpen ? <X size={20} /> : <Menu size={20} />}
         </button>
       </div>
@@ -47,8 +48,8 @@ export default function Sidebar() {
             className={({ isActive }) => `
               group w-full flex items-center px-3 py-2.5 rounded-xl transition-all duration-200
               ${isActive 
-                ? 'bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400 font-semibold' 
-                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100/80 hover:text-blue-600 dark:hover:bg-slate-800/50 dark:hover:text-blue-400 font-medium'}
+                ? 'bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-100 font-semibold' 
+                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100/80 dark:hover:bg-slate-800/50 font-medium'}
               ${!isSidebarOpen && 'justify-center'}
             `}
           >
@@ -111,7 +112,7 @@ export default function Sidebar() {
          
         <button 
            onClick={logout} 
-           className="group w-full flex items-center gap-3 p-3 rounded-xl bg-red-50 text-red-600 hover:bg-red-100 dark:bg-red-500/10 dark:text-red-400 dark:hover:bg-red-500/20 transition-colors duration-200 text-sm font-medium"
+           className="group w-full flex items-center gap-3 p-3 rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 transition-colors duration-200 text-sm font-medium"
         >
           <div className="transition-transform duration-200 group-hover:scale-110">
              <LogOut size={20} />

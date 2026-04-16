@@ -3,18 +3,14 @@ import Sidebar from './Sidebar';
 
 export default function Layout() {
   return (
-    // Ana çatı: Ekranı tamamen kaplayan kapsayıcı
-    <div className="flex h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 overflow-hidden font-sans transition-colors duration-300">
-      
-      {/* Sol Menü: Her zaman sol tarafta sabit kalacak */}
+    <div className="flex h-screen bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-slate-100 overflow-hidden font-sans transition-colors duration-300">
       <Sidebar />
 
-      {/* Orta Alan: Değişecek sayfaların yükleneceği yer */}
-      <main className="flex-1 overflow-y-auto p-8 relative">
-        <Outlet /> 
-        {/* <Outlet /> özelliği React-Router'a aittir. URL değiştikçe değişen sayfalar buraya yerleşir. */}
+      <main className="flex-1 overflow-y-auto p-5 lg:p-6 relative">
+        <div className="max-w-[1440px] mx-auto">
+          <Outlet />
+        </div>
       </main>
-
     </div>
   );
 }

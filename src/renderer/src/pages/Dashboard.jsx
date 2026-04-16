@@ -2,10 +2,12 @@ import { useState, useEffect } from 'react';
 import { Users, Package, Banknote, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownLeft, ShoppingCart, AlertTriangle } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
 
 export default function Dashboard() {
   const { t } = useTranslation();
   const { user } = useAuth();
+  const navigate = useNavigate();
 
   const [stats, setStats] = useState({
     totalCustomers: 0,
@@ -73,11 +75,10 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6">
-      {/* Welcome Banner */}
-      <div className="bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-700 dark:to-indigo-700 rounded-2xl p-6 text-white shadow-lg shadow-blue-500/20">
-        <p className="text-blue-100 text-sm font-medium">Hoş geldiniz 👋</p>
-        <h2 className="text-2xl font-bold mt-1 capitalize">{user?.name}</h2>
-        <p className="text-blue-200 text-sm mt-1">İşte systeminizin anlık özeti.</p>
+      <div className="fin-panel p-6">
+        <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">Hos geldiniz</p>
+        <h2 className="text-2xl font-bold mt-1 capitalize text-slate-800 dark:text-slate-100">{user?.name}</h2>
+        <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">Sistemin anlik finans ve stok ozeti.</p>
       </div>
 
       {/* Stat Cards */}
@@ -112,6 +113,28 @@ export default function Dashboard() {
         />
       </div>
 
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <button onClick={() => navigate('/islemler?quick=sale')} className="rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50/70 dark:bg-emerald-500/10 px-4 py-3 text-sm font-bold text-emerald-700 dark:text-emerald-300">Hizli Satis</button>
+        <button onClick={() => navigate('/islemler?quick=payment_in')} className="rounded-xl border border-blue-200 dark:border-blue-800 bg-blue-50/70 dark:bg-blue-500/10 px-4 py-3 text-sm font-bold text-blue-700 dark:text-blue-300">Hizli Tahsilat</button>
+        <button onClick={() => navigate('/islemler?quick=purchase')} className="rounded-xl border border-indigo-200 dark:border-indigo-800 bg-indigo-50/70 dark:bg-indigo-500/10 px-4 py-3 text-sm font-bold text-indigo-700 dark:text-indigo-300">Hizli Alim</button>
+        <button onClick={() => navigate('/islemler?quick=payment_out')} className="rounded-xl border border-red-200 dark:border-red-800 bg-red-50/70 dark:bg-red-500/10 px-4 py-3 text-sm font-bold text-red-700 dark:text-red-300">Hizli Odeme</button>
+      </div>
+      <div>
+        <button
+          onClick={async () => {
+            try {
+              const result = await window.api.system.createBackup();
+              alert(`Yedek olusturuldu: ${result.path}`);
+            } catch {
+              alert('Yedek olusturulamadi');
+            }
+          }}
+          className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-2 text-xs font-semibold text-slate-600 dark:text-slate-300"
+        >
+          Veri Yedegi Al
+        </button>
+      </div>
+
       {/* Entity + Inventory counts */}
       <div className="grid grid-cols-3 gap-4">
         <MiniCard icon={<Users size={18} className="text-blue-500"/>} label={t('sidebar_customers')} count={stats.totalCustomers} />
@@ -121,8 +144,8 @@ export default function Dashboard() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Recent Transactions */}
-        <div className="lg:col-span-2 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
-          <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800">
+        <div className="lg:col-span-2 fin-table-wrap">
+          <div className="fin-panel-header">
             <h3 className="font-bold text-slate-800 dark:text-white text-sm">Son Hesap Hareketleri</h3>
           </div>
           <div className="divide-y divide-slate-100 dark:divide-slate-800/50">
@@ -130,7 +153,7 @@ export default function Dashboard() {
               <p className="p-8 text-center text-slate-400 italic text-sm">{t('msg_no_transaction')}</p>
             )}
             {stats.recentTransactions.map(tx => (
-              <div key={tx.id} className="flex items-center justify-between px-6 py-3.5 hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
+              <div key={tx.id} className="flex items-center justify-between px-6 py-3 hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
                 <div className="flex items-center gap-3">
                   <div className={`p-2 rounded-xl ${isIncome(tx.transaction_type) ? 'bg-emerald-50 dark:bg-emerald-500/10' : 'bg-red-50 dark:bg-red-500/10'}`}>
                     {isIncome(tx.transaction_type)
@@ -157,8 +180,8 @@ export default function Dashboard() {
         </div>
 
         {/* Low Stock Warning */}
-        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
-          <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center gap-2">
+        <div className="fin-table-wrap">
+          <div className="fin-panel-header flex items-center gap-2">
             <AlertTriangle size={16} className="text-amber-500" />
             <h3 className="font-bold text-slate-800 dark:text-white text-sm">Düşük Stok Uyarısı</h3>
             {stats.lowStockItems.length > 0 && (
@@ -192,12 +215,12 @@ export default function Dashboard() {
 // Reusable Stat Card
 function StatCard({ icon, label, value, color, bg }) {
   return (
-    <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-sm">
-      <div className={`inline-flex p-2.5 rounded-xl mb-3 ${bg}`}>
+    <div className="fin-panel p-5">
+      <div className={`inline-flex p-2 rounded-lg mb-3 ${bg}`}>
         {icon}
       </div>
-      <p className="text-[11px] text-slate-400 uppercase tracking-wider font-bold">{label}</p>
-      <p className={`text-xl font-extrabold mt-0.5 font-mono ${color}`}>{value}</p>
+      <p className="text-[11px] text-slate-500 dark:text-slate-400 uppercase tracking-wider font-semibold">{label}</p>
+      <p className={`text-xl font-bold mt-1 font-mono ${color}`}>{value}</p>
     </div>
   );
 }
@@ -205,7 +228,7 @@ function StatCard({ icon, label, value, color, bg }) {
 // Reusable Mini Card
 function MiniCard({ icon, label, count }) {
   return (
-    <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-4 shadow-sm flex items-center gap-4">
+    <div className="fin-panel p-4 flex items-center gap-4">
       <div className="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800">
         {icon}
       </div>
