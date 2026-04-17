@@ -103,6 +103,14 @@ export function initDb() {
     )
   `).run();
 
+  // 7. Settings
+  db.prepare(`
+    CREATE TABLE IF NOT EXISTS settings (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL
+    )
+  `).run();
+
   // Backward-compatible lightweight migrations
   const addColumnIfMissing = (tableName, columnName, ddl) => {
     const cols = db.prepare(`PRAGMA table_info(${tableName})`).all();

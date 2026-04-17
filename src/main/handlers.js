@@ -331,6 +331,37 @@ export function setupHandlers() {
     }
   });
 
+  ipcMain.handle('api:items:bulkUpdatePrice', async (event, { type, value, supplier_id }) => {
+    try {
+      const db = getDb();
+      let query = "";
+      let params = [];
+      const safeValue = Number(value);
+
+      if (type === 'percent') {
+        query = 'UPDATE items SET unit_price = ROUND(unit_price * (1 + (? / 100)), 2)';
+        params.push(safeValue);
+      } else if (type === 'fixed') {
+        query = 'UPDATE items SET unit_price = unit_price + ?';
+        params.push(safeValue);
+      } else {
+        throw new Error('Invalid update type');
+      }
+
+      if (supplier_id && supplier_id !== 'all') {
+         query += ' WHERE supplier_id = ?';
+         params.push(Number(supplier_id));
+      }
+      
+      const stm = db.prepare(query);
+      const res = stm.run(...params);
+      return { success: true, updatedCount: res.changes };
+    } catch (err) {
+      console.error("Bulk update error:", err);
+      throw err;
+    }
+  });
+
   // ==================
   // TRANSACTIONS / LEDGER SERVICES
   // ==================
@@ -346,6 +377,29 @@ export function setupHandlers() {
       `).all();
     } catch (err) {
       console.error("Error fetching transactions:", err);
+      throw err;
+    }
+  });
+
+  ipcMain.handle('api:transactions:getPage', async (event, { limit = 20, offset = 0 } = {}) => {
+    try {
+      const db = getDb();
+      const data = db.prepare(`
+        SELECT t.*, e.title as entity_name, u.username as user_name
+        FROM transactions t
+        LEFT JOIN entities e ON t.entity_id = e.id
+        LEFT JOIN users u ON t.user_id = u.id
+        ORDER BY t.transaction_date DESC
+        LIMIT ? OFFSET ?
+      `).all(limit, offset);
+
+      const totalCount = db.prepare('SELECT COUNT(*) AS c FROM transactions').get().c;
+      const cashIn = db.prepare("SELECT COALESCE(SUM(amount), 0) AS c FROM transactions WHERE transaction_type = 'payment_in'").get().c;
+      const cashOut = db.prepare("SELECT COALESCE(SUM(amount), 0) AS c FROM transactions WHERE transaction_type = 'payment_out'").get().c;
+
+      return { data, totalCount, cashInTotal: cashIn, cashOutTotal: cashOut };
+    } catch (err) {
+      console.error("Error fetching transactions page:", err);
       throw err;
     }
   });
@@ -586,6 +640,93 @@ export function setupHandlers() {
     }
   });
 
+  // ==================
+  // DASHBOARD SERVICES
+  // ==================
+  ipcMain.handle('api:dashboard:getStats', async () => {
+    try {
+      const db = getDb();
+
+      // Müşteri / Alacak
+      const recResult = db.prepare("SELECT COALESCE(SUM(balance), 0) AS total FROM entities WHERE type = 'Customer'").get();
+      // Tedarikçi / Borç
+      const payResult = db.prepare("SELECT COALESCE(SUM(balance), 0) AS total FROM entities WHERE type = 'Supplier'").get();
+
+      // Toplam Stok Çeşit
+      const itemResult = db.prepare("SELECT COUNT(id) AS total FROM items").get();
+
+      // Kritik Stok (5'in altı)
+      const lowStock = db.prepare("SELECT id, name, unit, stock_quantity FROM items WHERE stock_quantity <= 5").all();
+
+      // Bugünkü Kasa (Giriş: sale, payment_in. Çıkış: purchase, payment_out)
+      // Tarih dilimleri için SQLite date fonksiyonunu kullanıyoruz
+      const todayCashQ = db.prepare(`
+        SELECT COALESCE(SUM(
+          CASE 
+            WHEN transaction_type IN ('sale', 'payment_in') THEN amount 
+            WHEN transaction_type IN ('purchase', 'payment_out') THEN -amount 
+            ELSE 0 
+          END
+        ), 0) AS net
+        FROM transactions 
+        WHERE date(transaction_date) = date('now', 'localtime')
+      `).get();
+
+      // Son 7 Günlük Tablo
+      // Son 7 güne ait toplamları gün gün filtreliyoruz.
+      const rawChart = db.prepare(`
+        SELECT 
+          date(transaction_date) as d, 
+          transaction_type as type, 
+          SUM(amount) as amt 
+        FROM transactions 
+        WHERE date(transaction_date) >= date('now', '-6 days', 'localtime')
+        GROUP BY date(transaction_date), transaction_type
+      `).all();
+
+      // Son 5 Ekstre İşlemi
+      const recentTransactions = db.prepare(`
+        SELECT t.*, e.title as entity_name
+        FROM transactions t
+        LEFT JOIN entities e ON t.entity_id = e.id
+        ORDER BY t.transaction_date DESC
+        LIMIT 5
+      `).all();
+
+      // Önceki Hafta Satış Hacmi (Basit trend için)
+      const thisWeekSales = db.prepare(`
+        SELECT COALESCE(SUM(amount), 0) as total FROM transactions 
+        WHERE transaction_type = 'sale' AND date(transaction_date) >= date('now', '-7 days', 'localtime')
+      `).get().total;
+
+      const lastWeekSales = db.prepare(`
+        SELECT COALESCE(SUM(amount), 0) as total FROM transactions 
+        WHERE transaction_type = 'sale' AND date(transaction_date) >= date('now', '-14 days', 'localtime') AND date(transaction_date) < date('now', '-7 days', 'localtime')
+      `).get().total;
+
+      let salesTrend = 0;
+      if (lastWeekSales > 0) {
+        salesTrend = ((thisWeekSales - lastWeekSales) / lastWeekSales) * 100;
+      } else if (thisWeekSales > 0) {
+        salesTrend = 100; // Önceki hafta 0 ise
+      }
+
+      return {
+        totalReceivables: recResult.total,
+        totalPayables: payResult.total,
+        totalItems: itemResult.total,
+        lowStockItems: lowStock,
+        dailyCash: todayCashQ.net,
+        recentTransactions: recentTransactions,
+        rawChartData: rawChart,
+        salesTrend: salesTrend
+      };
+    } catch (error) {
+      console.error('Dashboard Stats Error:', error);
+      throw error;
+    }
+  });
+
   ipcMain.handle('api:transactions:getStatementByEntity', async (event, entityId) => {
     try {
       const db = getDb();
@@ -626,8 +767,91 @@ export function setupHandlers() {
     }
   });
 
+  ipcMain.handle('api:system:restoreBackup', async (event, backupPath) => {
+    const { app, dialog } = require('electron');
+    const fs = require('fs');
+    try {
+      let finalPath = backupPath;
+      
+      if (!finalPath) {
+        const result = await dialog.showOpenDialog({
+          properties: ['openFile'],
+          filters: [{ name: 'Sistem Yedeği', extensions: ['db', 'sqlite'] }]
+        });
+        if (result.canceled || result.filePaths.length === 0) return { success: false, msg: 'İptal edildi' };
+        finalPath = result.filePaths[0];
+      }
+
+      if (!fs.existsSync(finalPath)) throw new Error('Seçilen yedek dosyası bulunamadı.');
+
+      const header = fs.readFileSync(finalPath, { length: 16 });
+      if (!header.toString('utf8').startsWith('SQLite format 3')) {
+         throw new Error('Seçilen dosya geçerli bir veritabanı yedeği değil.');
+      }
+      
+      const db = getDb();
+      const info = db.prepare('PRAGMA database_list').all();
+      const dbFile = info.find((i) => i.name === 'main')?.file;
+      if (!dbFile) throw new Error('Mevcut veritabanı yolu bulunamadı.');
+
+      // Safety core backup
+      fs.copyFileSync(dbFile, dbFile + '.safety_backup');
+
+      db.close();
+      fs.copyFileSync(finalPath, dbFile);
+
+      app.relaunch();
+      app.exit(0);
+      return { success: true };
+    } catch (err) {
+      console.error('Restore failed:', err);
+      throw err;
+    }
+  });
+
+  // ==================
+  // SETTINGS SERVICES
+  // ==================
+  ipcMain.handle('api:settings:getAll', async () => {
+    try {
+      const db = getDb();
+      const rows = db.prepare('SELECT * FROM settings').all();
+      const settingsObj = {};
+      rows.forEach(r => { settingsObj[r.key] = r.value; });
+      return settingsObj;
+    } catch (err) {
+      console.error('Settings getAll error:', err);
+      throw err;
+    }
+  });
+
+  ipcMain.handle('api:settings:update', async (event, settings) => {
+    try {
+      const db = getDb();
+      const stm = db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)');
+      const tx = db.transaction((sets) => {
+        for (const [k, v] of Object.entries(sets)) {
+          stm.run(String(k), String(v));
+        }
+      });
+      tx(settings);
+      return { success: true };
+    } catch (err) {
+      console.error('Settings update error:', err);
+      throw err;
+    }
+  });
+
   // PDF GENERATION
   ipcMain.handle('api:pdf:generate', async (event, invoice) => {
+    const db = getDb();
+    const storeNameRow = db.prepare("SELECT value FROM settings WHERE key = 'store_name'").get();
+    const storeName = storeNameRow?.value || '';
+
+    if (!storeName.trim()) {
+      throw new Error('Dükkan/Firma adı ayarlanmamış. Lütfen Ayarlar kısmından firma adını kaydedin.');
+    }
+
     const { BrowserWindow, shell, app } = require('electron');
     const path = require('path');
     const fs = require('fs');
@@ -656,7 +880,7 @@ export function setupHandlers() {
       <body>
         <div class="header">
           <div class="company-info">
-            <h1>ACCOUNTING PRO</h1>
+            <h1>${storeName}</h1>
             <p>Modern Muhasebe Çözümleri</p>
           </div>
           <div class="invoice-details">

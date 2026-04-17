@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Menu, X, Users, LayoutDashboard, LogOut, Package, Banknote, CalendarClock, ChevronRight } from 'lucide-react';
+import { Menu, X, Users, LayoutDashboard, LogOut, Package, Banknote, CalendarClock, ChevronRight, Settings as SettingsIcon } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useTranslation } from 'react-i18next';
@@ -15,7 +15,8 @@ export default function Sidebar() {
     { adres: '/tedarikciler', etiket: t('sidebar_suppliers'), ikon: <Package size={20} /> },
     { adres: '/envanter', etiket: t('sidebar_inventory'), ikon: <Package size={20} /> },
     { adres: '/islemler', etiket: t('sidebar_transactions'), ikon: <Banknote size={20} /> },
-    { adres: '/vadeler', etiket: 'Vadeler', ikon: <CalendarClock size={20} /> }
+    { adres: '/vadeler', etiket: 'Vadeler', ikon: <CalendarClock size={20} /> },
+    { adres: '/ayarlar', etiket: 'Ayarlar', ikon: <SettingsIcon size={20} /> }
   ];
 
   return (

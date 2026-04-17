@@ -19,16 +19,16 @@ export default function DueList() {
     const due = new Date(dueDate);
     due.setHours(0, 0, 0, 0);
     const diff = Math.floor((due - today) / (1000 * 60 * 60 * 24));
-    if (diff < 0) return 'Gecikmis';
-    if (diff <= 7) return 'Yaklasan';
-    return 'Ileri Tarih';
+    if (diff < 0) return 'Gecikmiş';
+    if (diff <= 7) return 'Yaklaşan';
+    return 'İleri Tarih';
   };
 
   return (
     <div className="space-y-6">
       <header className="bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800">
         <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Vade Merkezi</h2>
-        <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">Acik satis ve alim belgelerinin vade listesi.</p>
+        <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">Açık satış ve alım belgelerinin vade listesi.</p>
       </header>
 
       <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
@@ -37,8 +37,8 @@ export default function DueList() {
             <thead className="bg-slate-50 dark:bg-slate-800/50 text-slate-400 dark:text-slate-500 text-[10px] uppercase tracking-widest border-b border-slate-200 dark:border-slate-800">
               <tr>
                 <th className="px-6 py-4 font-bold">Belge</th>
-                <th className="px-6 py-4 font-bold">Tur</th>
-                <th className="px-6 py-4 font-bold">Musteri/Tedarikci</th>
+                <th className="px-6 py-4 font-bold">Tür</th>
+                <th className="px-6 py-4 font-bold">Müşteri/Tedarikçi</th>
                 <th className="px-6 py-4 font-bold">Vade</th>
                 <th className="px-6 py-4 font-bold text-right">Kalan</th>
                 <th className="px-6 py-4 font-bold">Durum</th>
@@ -48,7 +48,7 @@ export default function DueList() {
               {rows.map((r) => (
                 <tr key={r.id}>
                   <td className="px-6 py-4 text-sm font-mono">#{r.id}</td>
-                  <td className="px-6 py-4 text-sm">{r.transaction_type === 'sale' ? 'Satis' : 'Alim'}</td>
+                  <td className="px-6 py-4 text-sm">{r.transaction_type === 'sale' ? 'Satış' : 'Alım'}</td>
                   <td className="px-6 py-4 text-sm font-semibold">{r.entity_name}</td>
                   <td className="px-6 py-4 text-sm">{new Date(r.due_date).toLocaleDateString('tr-TR')}</td>
                   <td className="px-6 py-4 text-right text-sm font-mono">{Number(r.remaining_amount || r.amount).toFixed(2)} ₺</td>
@@ -56,7 +56,7 @@ export default function DueList() {
                 </tr>
               ))}
               {rows.length === 0 && (
-                <tr><td colSpan="6" className="p-10 text-center text-slate-400 italic">Acik vade kaydi bulunmuyor.</td></tr>
+                <tr><td colSpan="6" className="p-10 text-center text-slate-400 italic">Açık vade kaydı bulunmuyor.</td></tr>
               )}
             </tbody>
           </table>

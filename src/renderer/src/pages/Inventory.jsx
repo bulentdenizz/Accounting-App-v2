@@ -8,12 +8,15 @@ export default function Inventory() {
   const [items, setItems] = useState([]);
   const [suppliers, setSuppliers] = useState([]); // Tedarikçi listesi için
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [editingId, setEditingId] = useState(null);
 
   const emptyForm = { name: '', supplier_id: '', unit: '', unit_price: 0, tax_rate: 0, stock_quantity: 0 };
   const [formData, setFormData] = useState(emptyForm);
+
+  const [bulkData, setBulkData] = useState({ supplier_id: 'all', type: 'percent', value: 0 });
 
   const fetchData = async () => {
     try {
@@ -55,6 +58,28 @@ export default function Inventory() {
     } catch (err) {
       console.error("Save error:", err);
       setErrorMessage("Error saving to database.");
+    }
+  };
+
+  const handleBulkSubmit = async (e) => {
+    e.preventDefault();
+    setErrorMessage("");
+
+    try {
+      const res = await window.api.items.bulkUpdatePrice({
+        type: bulkData.type,
+        value: Number(bulkData.value),
+        supplier_id: bulkData.supplier_id
+      });
+      if(res.success) {
+        setIsBulkModalOpen(false);
+        setBulkData({ supplier_id: 'all', type: 'percent', value: 0 });
+        fetchData();
+        alert(`${res.updatedCount} ürünün fiyatı güncellendi.`);
+      }
+    } catch (err) {
+      console.error("Bulk save error:", err);
+      setErrorMessage("Fiyatlar güncellenirken hata oluştu.");
     }
   };
 
@@ -108,15 +133,27 @@ export default function Inventory() {
           <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">{t('inventory_desc')}</p>
         </div>
         
-        <button 
-           onClick={openModal}
-           className="group flex items-center gap-2 bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 px-5 py-3 font-semibold rounded-xl transition-all duration-200"
-        >
-           <div className="transition-transform duration-200 group-hover:scale-110">
-             <Plus size={20} />
-           </div>
-           {t('btn_new_item')}
-        </button>
+        <div className="flex gap-2">
+          <button 
+             onClick={() => { setErrorMessage(''); setIsBulkModalOpen(true); }}
+             className="group flex items-center gap-2 bg-amber-50 text-amber-700 hover:bg-amber-100 dark:bg-amber-500/10 dark:text-amber-400 dark:hover:bg-amber-500/20 px-4 py-3 font-semibold rounded-xl transition-all duration-200"
+          >
+             <div className="transition-transform duration-200 group-hover:scale-110">
+               <Percent size={18} />
+             </div>
+             Toplu Fiyat/Zam
+          </button>
+
+          <button 
+             onClick={openModal}
+             className="group flex items-center gap-2 bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 px-5 py-3 font-semibold rounded-xl transition-all duration-200"
+          >
+             <div className="transition-transform duration-200 group-hover:scale-110">
+               <Plus size={20} />
+             </div>
+             {t('btn_new_item')}
+          </button>
+        </div>
       </header>
 
       <div className="mb-6 relative">
@@ -305,6 +342,75 @@ export default function Inventory() {
                      <button type="submit"
                         className="w-full py-3.5 text-sm font-bold bg-blue-600 hover:bg-blue-500 text-white rounded-xl shadow-[0_4px_14px_0_rgba(37,99,235,0.39)] hover:shadow-[0_6px_20px_rgba(37,99,235,0.23)] transition-all active:scale-[0.98]">
                         {editingId ? t('btn_update') : t('btn_save')}
+                     </button>
+                  </div>
+               </form>
+           </div>
+        </div>
+      )}
+
+      {isBulkModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 dark:bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+           <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-3xl shadow-2xl overflow-hidden border border-slate-200 dark:border-slate-800 animate-in zoom-in-95 duration-200">
+               <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-amber-50 dark:bg-amber-500/10">
+                  <h3 className="font-bold text-amber-800 dark:text-amber-500 text-lg flex items-center gap-2">
+                     <Percent size={20} /> Toplu Fiyat Güncelleme (Zam/İndirim)
+                  </h3>
+                  <button onClick={() => setIsBulkModalOpen(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800">
+                     <X size={20} />
+                  </button>
+               </div>
+
+               <form onSubmit={handleBulkSubmit} className="p-6 space-y-5">
+                  {errorMessage && (
+                    <div className="bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 p-3 rounded-lg text-xs text-center border border-red-100 dark:border-red-900/50">
+                       {errorMessage}
+                    </div>
+                  )}
+
+                  <div className="space-y-1.5">
+                     <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider pl-1">HEDEF ÜRÜNLER (TEDARİKÇİYE GÖRE)</label>
+                     <select 
+                        className="w-full bg-slate-50 dark:bg-slate-950 dark:text-white border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-amber-500 text-sm font-medium"
+                        value={bulkData.supplier_id} 
+                        onChange={e => setBulkData({...bulkData, supplier_id: e.target.value })} 
+                     >
+                        <option value="all">-- Tüm Tedarikçiler / Tüm Ürünler --</option>
+                        {suppliers.map(s => (
+                           <option key={s.id} value={s.id}>{s.title}</option>
+                        ))}
+                     </select>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                     <div className="space-y-1.5">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider pl-1">DEĞİŞİM TİPİ</label>
+                        <select 
+                           className="w-full bg-slate-50 dark:bg-slate-950 dark:text-white border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-amber-500 text-sm font-medium"
+                           value={bulkData.type} 
+                           onChange={e => setBulkData({...bulkData, type: e.target.value })} 
+                        >
+                           <option value="percent">Yüzde (%) (Örn: Zam %10)</option>
+                           <option value="fixed">Sabit Tutar (₺) Ekle</option>
+                        </select>
+                     </div>
+                     <div className="space-y-1.5">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider pl-1">DEĞER (ZAM: +, İNDİRİM: -)</label>
+                        <input type="number" step="0.01" required
+                           placeholder="Örn: 10 veya -5"
+                           className="w-full bg-slate-50 dark:bg-slate-950 dark:text-white border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-amber-500 text-sm font-medium font-mono"
+                           value={bulkData.value} onChange={e => setBulkData({...bulkData, value: e.target.value})} />
+                     </div>
+                  </div>
+
+                  <p className="text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-500/10 p-3 rounded-lg border border-amber-100 dark:border-amber-900/50">
+                    <strong>Bilgi:</strong> İndirim yapmak için değerin başına eksi (-) koyun. Örneğin -10 yazarsanız %10 indirim veya 10₺ indirim uygulanır.
+                  </p>
+
+                  <div className="pt-2">
+                     <button type="submit"
+                        className="w-full py-3.5 text-sm font-bold bg-amber-600 hover:bg-amber-500 text-white rounded-xl shadow-[0_4px_14px_0_rgba(217,119,6,0.39)] hover:shadow-[0_6px_20px_rgba(217,119,6,0.23)] transition-all active:scale-[0.98]">
+                        Fiyatları Güncelle
                      </button>
                   </div>
                </form>

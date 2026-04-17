@@ -11,6 +11,7 @@ import Suppliers from './pages/Suppliers';
 import Inventory from './pages/Inventory';
 import Transactions from './pages/Transactions';
 import DueList from './pages/DueList';
+import Settings from './pages/Settings';
 
 // Route guard: Redirects to Login if user is not authenticated
 function ProtectedRoute({ children }) {
@@ -53,6 +54,7 @@ function MainApp() {
           <Route path="envanter" element={<Inventory />} /> {/* Stok sayfası */}
           <Route path="islemler" element={<Transactions />} /> {/* İşlemler sayfası */}
           <Route path="vadeler" element={<DueList />} />
+          <Route path="ayarlar" element={<Settings />} />
         </Route>
 
       </Routes>

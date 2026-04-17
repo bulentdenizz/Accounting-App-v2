@@ -17,10 +17,12 @@ const api = {
     getAll: () => ipcRenderer.invoke('api:items:getAll'),
     create: (data) => ipcRenderer.invoke('api:items:create', data),
     update: (data) => ipcRenderer.invoke('api:items:update', data),
-    delete: (id) => ipcRenderer.invoke('api:items:delete', id)
+    delete: (id) => ipcRenderer.invoke('api:items:delete', id),
+    bulkUpdatePrice: (data) => ipcRenderer.invoke('api:items:bulkUpdatePrice', data)
   },
   transactions: {
     getAll: () => ipcRenderer.invoke('api:transactions:getAll'),
+    getPage: (params) => ipcRenderer.invoke('api:transactions:getPage', params),
     getItems: (id) => ipcRenderer.invoke('api:transactions:getItems', id),
     getOpenDocuments: (payload) => ipcRenderer.invoke('api:transactions:getOpenDocuments', payload),
     getDueList: () => ipcRenderer.invoke('api:transactions:getDueList'),
@@ -29,11 +31,19 @@ const api = {
     update: (data) => ipcRenderer.invoke('api:transactions:update', data),
     delete: (id) => ipcRenderer.invoke('api:transactions:delete', id)
   },
+  dashboard: {
+    getStats: () => ipcRenderer.invoke('api:dashboard:getStats')
+  },
+  settings: {
+    getAll: () => ipcRenderer.invoke('api:settings:getAll'),
+    update: (settings) => ipcRenderer.invoke('api:settings:update', settings)
+  },
   pdf: {
     generate: (invoice) => ipcRenderer.invoke('api:pdf:generate', invoice)
   },
   system: {
-    createBackup: () => ipcRenderer.invoke('api:system:createBackup')
+    createBackup: () => ipcRenderer.invoke('api:system:createBackup'),
+    restoreBackup: () => ipcRenderer.invoke('api:system:restoreBackup')
   }
 }
 

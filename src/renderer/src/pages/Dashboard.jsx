@@ -43,84 +43,53 @@ export default function Dashboard() {
     lowStockItems: [],
     recentTransactions: [],
     dailyCash: 0,
-    chartData: []
+    chartData: [],
+    salesTrend: 0
   })
 
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    const fetchAll = async () => {
+    const fetchStats = async () => {
       try {
-        const [entities, items, transactions] = await Promise.all([
-          window.api.customers.getAll(),
-          window.api.items.getAll(),
-          window.api.transactions.getAll()
-        ])
+        const data = await window.api.dashboard.getStats();
 
-        // Balances: Alacak (Customers), Borç (Suppliers)
-        const receivables = entities
-          .filter((e) => e.type === 'Customer')
-          .reduce((sum, e) => sum + (e.balance || 0), 0)
-
-        const payables = entities
-          .filter((e) => e.type === 'Supplier')
-          .reduce((sum, e) => sum + (e.balance || 0), 0)
-
-        const lowStock = items.filter((i) => i.stock_quantity <= 5)
-
-        // Daily Cash (simplified: net of today's payments)
-        const today = new Date().toISOString().split('T')[0]
-        const todayCash = transactions
-          .filter((tx) => tx.transaction_date.startsWith(today))
-          .reduce((sum, tx) => {
-            if (tx.transaction_type === 'payment_in' || tx.transaction_type === 'sale')
-              return sum + tx.amount
-            if (tx.transaction_type === 'payment_out' || tx.transaction_type === 'purchase')
-              return sum - tx.amount
-            return sum
-          }, 0)
-
-        // Chart Data (last 7 days)
+        // Process chart data
         const last7Days = [...Array(7)]
           .map((_, i) => {
-            const d = new Date()
-            d.setDate(d.getDate() - i)
-            return d.toISOString().split('T')[0]
+            const d = new Date();
+            d.setDate(d.getDate() - i);
+            return d.toISOString().split('T')[0];
           })
-          .reverse()
+          .reverse();
 
         const chartData = last7Days.map((date) => {
-          const dayTxs = transactions.filter((tx) => tx.transaction_date.startsWith(date))
-          const sales = dayTxs
-            .filter((tx) => tx.transaction_type === 'sale')
-            .reduce((s, t) => s + t.amount, 0)
-          const purchases = dayTxs
-            .filter((tx) => tx.transaction_type === 'purchase')
-            .reduce((s, t) => s + t.amount, 0)
+          const dayRecords = data.rawChartData.filter(r => r.d === date);
+          const sales = dayRecords
+            .filter((r) => r.type === 'sale')
+            .reduce((s, r) => s + r.amt, 0);
+          const purchases = dayRecords
+            .filter((r) => r.type === 'purchase')
+            .reduce((s, r) => s + r.amt, 0);
           return {
             date: new Date(date).toLocaleDateString('tr-TR', { weekday: 'short' }),
             Satış: sales,
             Alım: purchases
-          }
-        })
+          };
+        });
 
         setStats({
-          totalReceivables: receivables,
-          totalPayables: payables,
-          totalItems: items.length,
-          lowStockItems: lowStock,
-          recentTransactions: transactions.slice(0, 5),
-          dailyCash: todayCash,
+          ...data,
           chartData: chartData
-        })
+        });
       } catch (err) {
-        console.error('Dashboard fetch error:', err)
+        console.error('Dashboard fetch error:', err);
       } finally {
-        setIsLoading(false)
+        setIsLoading(false);
       }
-    }
-    fetchAll()
-  }, [])
+    };
+    fetchStats();
+  }, []);
 
   const getTypeColor = (type) => {
     if (type === 'sale' || type === 'payment_in') return 'text-emerald-600 dark:text-emerald-400'
@@ -136,16 +105,16 @@ export default function Dashboard() {
         <StatCard
           icon={<TrendingUp className="w-6 h-6" />}
           title="Toplam Alacak"
-          value={`${stats.totalReceivables.toLocaleString('tr-TR')} ₺`}
-          trend="+12%"
-          trendPositive={true}
+          value={`${(stats.totalReceivables || 0).toLocaleString('tr-TR')} ₺`}
+          trend={stats.salesTrend > 0 ? `+${(stats.salesTrend || 0).toFixed(1)}% Satış` : `${(stats.salesTrend || 0).toFixed(1)}% Satış`}
+          trendPositive={stats.salesTrend >= 0}
           color="emerald"
         />
         <StatCard
           icon={<TrendingDown className="w-6 h-6" />}
           title="Toplam Borç"
           value={`${stats.totalPayables.toLocaleString('tr-TR')} ₺`}
-          trend="-5%"
+          trend="Aktif"
           trendPositive={false}
           color="red"
         />
@@ -161,7 +130,7 @@ export default function Dashboard() {
           icon={<Wallet className="w-6 h-6" />}
           title="Bugünkü Kasa"
           value={`${stats.dailyCash.toLocaleString('tr-TR')} ₺`}
-          trend={stats.dailyCash >= 0 ? '+₺...' : '-₺...'}
+          trend={stats.dailyCash >= 0 ? 'Pozitif' : 'Açık'}
           trendPositive={stats.dailyCash >= 0}
           color="blue"
         />

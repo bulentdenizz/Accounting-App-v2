@@ -9,6 +9,10 @@ export default function Transactions() {
   const [searchParams, setSearchParams] = useSearchParams();
 
   const [transactions, setTransactions] = useState([]);
+  const [totalCount, setTotalCount] = useState(0);
+  const [cashStats, setCashStats] = useState({ in: 0, out: 0, net: 0 });
+  const [currentPage, setCurrentPage] = useState(1);
+  const limit = 20;
   const [entities, setEntities] = useState([]);
   const [items, setItems] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -40,12 +44,18 @@ export default function Transactions() {
 
   const fetchData = async () => {
     try {
-      const [txs, ents, itms] = await Promise.all([
-        window.api.transactions.getAll(),
+      const [txData, ents, itms] = await Promise.all([
+        window.api.transactions.getPage({ limit, offset: (currentPage - 1) * limit }),
         window.api.customers.getAll(),
         window.api.items.getAll()
       ]);
-      setTransactions(txs);
+      setTransactions(txData.data);
+      setTotalCount(txData.totalCount);
+      setCashStats({ 
+        in: txData.cashInTotal, 
+        out: txData.cashOutTotal,
+        net: txData.cashInTotal - txData.cashOutTotal
+      });
       setEntities(ents);
       setItems(itms);
     } catch (err) {
@@ -53,7 +63,7 @@ export default function Transactions() {
     }
   };
 
-  useEffect(() => { fetchData(); }, []);
+  useEffect(() => { fetchData(); }, [currentPage]);
 
   useEffect(() => {
     const quick = searchParams.get('quick');
@@ -255,13 +265,6 @@ export default function Transactions() {
   };
 
   const isProductFlow = ['sale', 'purchase', 'sale_return', 'purchase_return'].includes(formData.transaction_type);
-  const cashInTotal = transactions
-    .filter((tx) => tx.transaction_type === 'payment_in')
-    .reduce((sum, tx) => sum + Number(tx.amount || 0), 0);
-  const cashOutTotal = transactions
-    .filter((tx) => tx.transaction_type === 'payment_out')
-    .reduce((sum, tx) => sum + Number(tx.amount || 0), 0);
-  const cashNet = cashInTotal - cashOutTotal;
 
   return (
     <div className="h-full flex flex-col relative">
@@ -271,7 +274,7 @@ export default function Transactions() {
           <h2 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
             {t('transactions_title')}
             <span className="text-xs bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 px-2 py-1 rounded-full border border-slate-200 dark:border-slate-700">
-              {t('record_total').replace('{{count}}', transactions.length)}
+              {t('record_total').replace('{{count}}', totalCount)}
             </span>
           </h2>
           <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">{t('transactions_desc')}</p>
@@ -290,15 +293,15 @@ export default function Transactions() {
       <section className="mb-6 grid grid-cols-1 md:grid-cols-3 gap-3">
         <div className="fin-panel p-4">
           <p className="text-xs text-slate-500 dark:text-slate-400">Kasa Giris</p>
-          <p className="text-xl font-bold font-mono text-emerald-600 dark:text-emerald-400">{cashInTotal.toFixed(2)} ₺</p>
+          <p className="text-xl font-bold font-mono text-emerald-600 dark:text-emerald-400">{cashStats.in.toFixed(2)} ₺</p>
         </div>
         <div className="fin-panel p-4">
           <p className="text-xs text-slate-500 dark:text-slate-400">Kasa Cikis</p>
-          <p className="text-xl font-bold font-mono text-red-500 dark:text-red-400">{cashOutTotal.toFixed(2)} ₺</p>
+          <p className="text-xl font-bold font-mono text-red-500 dark:text-red-400">{cashStats.out.toFixed(2)} ₺</p>
         </div>
         <div className="fin-panel p-4">
           <p className="text-xs text-slate-500 dark:text-slate-400">Net Kasa</p>
-          <p className={`text-xl font-bold font-mono ${cashNet >= 0 ? 'text-blue-600 dark:text-blue-400' : 'text-red-500 dark:text-red-400'}`}>{cashNet.toFixed(2)} ₺</p>
+          <p className={`text-xl font-bold font-mono ${cashStats.net >= 0 ? 'text-blue-600 dark:text-blue-400' : 'text-red-500 dark:text-red-400'}`}>{cashStats.net.toFixed(2)} ₺</p>
         </div>
       </section>
 
@@ -395,6 +398,30 @@ export default function Transactions() {
             </tbody>
           </table>
         </div>
+
+        {totalCount > limit && (
+          <div className="flex items-center justify-between mt-4 mb-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3 shadow-sm">
+            <span className="text-xs font-semibold text-slate-500 px-2">
+              Sayfa {currentPage} / {Math.ceil(totalCount / limit)} ({totalCount} İşlem)
+            </span>
+            <div className="flex gap-2">
+              <button 
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                className="px-4 py-1.5 text-xs font-bold rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 disabled:opacity-50 transition-colors"
+              >
+                Önceki
+              </button>
+              <button 
+                disabled={currentPage >= Math.ceil(totalCount / limit)}
+                onClick={() => setCurrentPage(p => p + 1)}
+                className="px-4 py-1.5 text-xs font-bold rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 disabled:opacity-50 transition-colors"
+              >
+                Sonraki
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* MODAL */}
