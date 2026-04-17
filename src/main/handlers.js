@@ -129,6 +129,17 @@ export function setupHandlers() {
     return { allocated: total, unallocated: Number(paymentAmount) - total };
   };
 
+  const getAverageCost = (db, itemId) => {
+    if (!itemId) return 0;
+    const result = db.prepare(`
+      SELECT SUM(quantity * unit_price) / NULLIF(SUM(quantity), 0) as avg_cost
+      FROM transaction_items ti
+      JOIN transactions t ON ti.transaction_id = t.id
+      WHERE t.transaction_type = 'purchase' AND t.is_cancelled = 0 AND ti.item_id = ?
+    `).get(itemId);
+    return result?.avg_cost || 0;
+  };
+
   const assertStockAvailability = (db, txType, lineItems) => {
     if (!Array.isArray(lineItems) || lineItems.length === 0) return;
     if (txType !== 'sale' && txType !== 'purchase_return') return;
@@ -573,11 +584,12 @@ export function setupHandlers() {
       const newTxId = txResult.lastInsertRowid;
 
       const insertItem = db.prepare(`
-        INSERT INTO transaction_items (transaction_id, item_id, item_name, quantity, unit_price, tax_rate, subtotal)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO transaction_items (transaction_id, item_id, item_name, quantity, unit_price, tax_rate, subtotal, unit_cost_at_sale)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
       `);
       if (lineItems.length > 0) {
         for (const lineItem of lineItems) {
+          const avgCost = getAverageCost(db, lineItem.item_id);
           insertItem.run(
             newTxId,
             lineItem.item_id || null,
@@ -585,9 +597,9 @@ export function setupHandlers() {
             lineItem.quantity,
             lineItem.unit_price,
             lineItem.tax_rate || 0,
-            lineItem.subtotal
+            lineItem.subtotal,
+            avgCost
           );
-
         }
       }
 
@@ -624,8 +636,18 @@ export function setupHandlers() {
     const oldTx = db.prepare('SELECT * FROM transactions WHERE id = ? AND is_cancelled = 0').get(oldId);
     if (!oldTx) throw new Error("Transaction not found or cancelled");
 
-    if ((oldTx.transaction_type === 'sale' || oldTx.transaction_type === 'purchase') && Number(oldTx.remaining_amount) !== Number(oldTx.amount)) {
-      throw new Error("Bu belgede tahsilat/ödeme işlemi var. Güncellemeden önce ödemeleri kaldırın.");
+    // IMMUTABILITY GUARD — Faturalar (satış/alış) sonradan düzenlenemez (VUK uyumluluğu).
+    // Düzeltme gerekiyorsa: İptal et → yeniden oluştur.
+    if (oldTx.transaction_type === 'sale' || oldTx.transaction_type === 'purchase') {
+      throw new Error("Faturalar sonradan düzenlenemez. Lütfen bu işlemi iptal edip yeni bir belge oluşturun.");
+    }
+
+    // Kısmi ödemeli ödeme belgeleri de korunur
+    if ((oldTx.transaction_type === 'payment_in' || oldTx.transaction_type === 'payment_out')) {
+      const allocCount = db.prepare('SELECT COUNT(*) as c FROM payment_allocations WHERE payment_transaction_id = ?').get(oldId).c;
+      if (allocCount > 0) {
+        throw new Error("Bu ödeme belgesinde fatura eşleşmesi var. Güncellemeden önce eşleşmeleri kaldırın.");
+      }
     }
 
     const newType = normalizeType(data.transaction_type);
@@ -1146,9 +1168,9 @@ export function setupHandlers() {
         ORDER BY month ASC
       `).all();
 
-      // 4. Karlılık Analizi (Basit COGS Yaklaşımı: Ortalama Alış vs Satış)
-      // Bu sorgu, satılan ürünlerin o dönemdeki toplam satış geliri ve
-      // o ürünlerin sistemdeki GENEL ortalama alış maliyeti arasındaki farkı hesaplar.
+      // 4. Karlılık Analizi (Snapshot COGS — Phase 5)
+      // unit_cost_at_sale satış anında kaydedilen maliyet. Legacy veriler için
+      // fallback olarak dinamik ortalama kullanılır.
       const profitData = db.prepare(`
         WITH AveragePurchaseCosts AS (
           SELECT 
@@ -1163,22 +1185,39 @@ export function setupHandlers() {
           ti.item_name,
           SUM(ti.quantity) as total_qty,
           SUM(ti.quantity * ti.unit_price) as total_revenue,
-          SUM(ti.quantity * COALESCE(apc.avg_cost, 0)) as total_cost
+          SUM(ti.quantity * COALESCE(ti.unit_cost_at_sale, apc.avg_cost, 0)) as total_cost
         FROM transaction_items ti
         JOIN transactions t ON ti.transaction_id = t.id
         LEFT JOIN AveragePurchaseCosts apc ON ti.item_id = apc.item_id
         WHERE t.transaction_type = 'sale' AND t.is_cancelled = 0 
         AND date(t.transaction_date) BETWEEN ? AND ?
         GROUP BY ti.item_name
-        ORDER BY (SUM(ti.quantity * ti.unit_price) - SUM(ti.quantity * COALESCE(apc.avg_cost, 0))) DESC
+        ORDER BY (SUM(ti.quantity * ti.unit_price) - SUM(ti.quantity * COALESCE(ti.unit_cost_at_sale, apc.avg_cost, 0))) DESC
         LIMIT 10
+      `).all(...params);
+
+      // 5. KDV Oran Bazlı Matrah Ayrımı (Vergi Beyannamesi İçin)
+      const kdvByRate = db.prepare(`
+        SELECT 
+          ti.tax_rate,
+          t.transaction_type,
+          SUM(ti.quantity * ti.unit_price) as matrah,
+          SUM(ti.quantity * ti.unit_price * ti.tax_rate / 100) as kdv_tutari
+        FROM transaction_items ti
+        JOIN transactions t ON ti.transaction_id = t.id
+        WHERE t.is_cancelled = 0 
+        AND t.transaction_type IN ('sale', 'purchase')
+        AND date(t.transaction_date) BETWEEN ? AND ?
+        GROUP BY ti.tax_rate, t.transaction_type
+        ORDER BY ti.tax_rate ASC
       `).all(...params);
 
       return {
         summary,
         payments,
         kdvTrend,
-        profitData
+        profitData,
+        kdvByRate
       };
     } catch (err) {
       console.error('Report stats error:', err);
@@ -1208,6 +1247,80 @@ export function setupHandlers() {
       return result.total_value || 0;
     } catch (err) {
       console.error('Inventory valuation error:', err);
+      throw err;
+    }
+  });
+
+  // ==================
+  // LEDGER RECONCILIATION (Phase 5)
+  // ==================
+  ipcMain.handle('api:system:reconcileLedger', async () => {
+    try {
+      const db = getDb();
+      const results = { balanceFixes: 0, stockFixes: 0, details: [] };
+
+      const reconcile = db.transaction(() => {
+        // 1. Cari Bakiye Mutabakatı
+        const entities = db.prepare('SELECT id, title, balance FROM entities').all();
+        for (const entity of entities) {
+          const computed = db.prepare(`
+            SELECT COALESCE(SUM(
+              CASE 
+                WHEN transaction_type IN ('sale', 'purchase') THEN amount
+                WHEN transaction_type IN ('payment_in', 'payment_out') THEN -amount
+                WHEN transaction_type IN ('sale_return', 'purchase_return') THEN -amount
+                ELSE 0
+              END
+            ), 0) as expected_balance
+            FROM transactions 
+            WHERE entity_id = ? AND is_cancelled = 0
+          `).get(entity.id).expected_balance;
+
+          const drift = Math.abs(Number(entity.balance) - Number(computed));
+          if (drift > 0.01) {
+            db.prepare('UPDATE entities SET balance = ? WHERE id = ?').run(computed, entity.id);
+            results.balanceFixes++;
+            results.details.push({
+              type: 'balance',
+              entity: entity.title,
+              was: Number(entity.balance).toFixed(2),
+              corrected: Number(computed).toFixed(2),
+              drift: drift.toFixed(2)
+            });
+          }
+        }
+
+        // 2. Stok Mutabakatı
+        const items = db.prepare('SELECT id, name, stock_quantity FROM items').all();
+        for (const item of items) {
+          const movementSum = db.prepare(`
+            SELECT COALESCE(SUM(quantity_change), 0) as expected
+            FROM stock_movements WHERE item_id = ?
+          `).get(item.id).expected;
+
+          const drift = Math.abs(Number(item.stock_quantity) - Number(movementSum));
+          if (drift > 0.01) {
+            db.prepare('UPDATE items SET stock_quantity = ? WHERE id = ?').run(movementSum, item.id);
+            results.stockFixes++;
+            results.details.push({
+              type: 'stock',
+              item: item.name,
+              was: Number(item.stock_quantity).toFixed(2),
+              corrected: Number(movementSum).toFixed(2),
+              drift: drift.toFixed(2)
+            });
+          }
+        }
+      });
+
+      reconcile();
+      return { 
+        success: true, 
+        message: `Mutabakat tamamlandı. ${results.balanceFixes} bakiye ve ${results.stockFixes} stok düzeltildi.`,
+        ...results 
+      };
+    } catch (err) {
+      console.error('Reconciliation error:', err);
       throw err;
     }
   });

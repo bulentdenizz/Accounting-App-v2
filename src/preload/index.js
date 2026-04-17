@@ -51,7 +51,8 @@ const api = {
   },
   system: {
     createBackup: () => ipcRenderer.invoke('api:system:createBackup'),
-    restoreBackup: () => ipcRenderer.invoke('api:system:restoreBackup')
+    restoreBackup: () => ipcRenderer.invoke('api:system:restoreBackup'),
+    reconcileLedger: () => ipcRenderer.invoke('api:system:reconcileLedger')
   }
 }
 

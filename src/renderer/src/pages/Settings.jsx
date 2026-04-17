@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Save, Store, MapPin, Phone, Download, UploadCloud } from 'lucide-react';
+import { Save, Store, MapPin, Phone, Download, UploadCloud, RefreshCw } from 'lucide-react';
 
 export default function Settings() {
   const [settings, setSettings] = useState({
@@ -57,6 +57,27 @@ export default function Settings() {
     } catch (err) {
       console.error(err);
       alert("Geri yükleme hatası:\n" + err.message);
+    }
+  };
+
+  const handleReconcile = async () => {
+    if (!window.confirm("Tüm cari bakiyeler ve stok miktarları, işlem geçmişinden yeniden hesaplanacaktır.\n\nDevam etmek istiyor musunuz?")) return;
+    try {
+      const res = await window.api.system.reconcileLedger();
+      if (res.success) {
+        let msg = res.message;
+        if (res.details && res.details.length > 0) {
+          msg += '\n\nDüzeltmeler:\n' + res.details.map(d => 
+            d.type === 'balance' 
+              ? `• ${d.entity}: ${d.was} → ${d.corrected} (fark: ${d.drift})` 
+              : `• ${d.item}: ${d.was} → ${d.corrected} (fark: ${d.drift})`
+          ).join('\n');
+        }
+        alert(msg);
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Mutabakat hatası:\n" + err.message);
     }
   };
 
@@ -172,6 +193,21 @@ export default function Settings() {
             Yedekten Dön (Restore)
           </button>
         </div>
+      </div>
+
+      <div className="fin-panel p-6 mt-6">
+        <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-4">Veri Mutabakatı (Reconciliation)</h3>
+        <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">
+          Tüm müşteri/tedarikçi bakiyelerini ve stok miktarlarını işlem geçmişinden yeniden hesaplar. Herhangi bir sapma tespit edilirse otomatik düzeltir.
+        </p>
+        <button 
+          onClick={handleReconcile}
+          type="button"
+          className="flex items-center gap-2 bg-blue-50 text-blue-700 hover:bg-blue-100 dark:bg-blue-500/10 dark:text-blue-400 dark:hover:bg-blue-500/20 px-5 py-3 rounded-xl font-bold transition-colors"
+        >
+          <RefreshCw size={18} />
+          Bakiyeleri Yeniden Hesapla
+        </button>
       </div>
     </div>
   );

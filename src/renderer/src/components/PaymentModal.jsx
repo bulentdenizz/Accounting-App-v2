@@ -64,7 +64,7 @@ export default function PaymentModal({ entity, type, onClose, onSuccess }) {
                     .filter(([_, val]) => parseFloat(val) > 0)
                     .map(([id, val]) => ({
                       target_transaction_id: parseInt(id),
-                      allocated_amount: parseFloat(val)
+                      amount: parseFloat(val)
                     }))
       };
 

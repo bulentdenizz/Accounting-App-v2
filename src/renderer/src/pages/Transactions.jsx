@@ -379,6 +379,7 @@ export default function Transactions() {
                         >
                           <Printer size={16} />
                         </button>
+                        {tData.transaction_type !== 'sale' && tData.transaction_type !== 'purchase' && (
                         <button 
                           onClick={() => handleEdit(tData)}
                           className="p-1.5 text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-500/10 rounded-lg transition-colors"
@@ -386,6 +387,7 @@ export default function Transactions() {
                         >
                           <Pencil size={16} />
                         </button>
+                        )}
                         <button
                           onClick={() => handleDelete(tData.id)}
                           className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-colors"

@@ -206,6 +206,9 @@ export function initDb() {
   addColumnIfMissing('transactions', 'invoice_number',       'invoice_number TEXT');
   addColumnIfMissing('transactions', 'tax_amount',           'tax_amount REAL NOT NULL DEFAULT 0');
   addColumnIfMissing('transactions', 'amount_excl_tax',      'amount_excl_tax REAL');
+  
+  // Phase 5 — Snapshot COGS
+  addColumnIfMissing('transaction_items', 'unit_cost_at_sale', 'unit_cost_at_sale REAL');
 
   // ── Mevcut Veri Normalizasyonu ───────────────────────────────────────────
   db.prepare(`
