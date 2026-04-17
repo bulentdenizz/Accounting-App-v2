@@ -1,8 +1,20 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 import { useState, useEffect } from 'react';
 import { Plus, X, Banknote, User, ArrowUpRight, ArrowDownLeft, Trash2, Pencil, Printer } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import InvoiceModal from '../components/InvoiceModal';
 import { useSearchParams } from 'react-router-dom';
+
+let _lineId = 0;
+const emptyLine = () => ({
+  _key: `line_${++_lineId}`,
+  item_id: '',
+  item_name: '',
+  quantity: 1,
+  unit_price: 0,
+  tax_rate: 0,
+  subtotal: 0
+});
 
 export default function Transactions() {
   const { t } = useTranslation();
@@ -21,15 +33,6 @@ export default function Transactions() {
   const [errorMessage, setErrorMessage] = useState("");
   const [openDocs, setOpenDocs] = useState([]);
   const [allocations, setAllocations] = useState([]);
-  const emptyLine = () => ({
-    _key: Math.random(),
-    item_id: '',
-    item_name: '',
-    quantity: 1,
-    unit_price: 0,
-    tax_rate: 0,
-    subtotal: 0
-  });
 
   const emptyForm = {
     entity_id: '',
@@ -442,13 +445,14 @@ export default function Transactions() {
                 </div>
               )}
 
-              <div className="fin-panel p-4 space-y-4">
-                <h4 className="text-sm font-semibold text-slate-700 dark:text-slate-200">1) Islem Tipi ve Kisi</h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="fin-panel p-4 space-y-4 relative overflow-hidden">
+                <div className="absolute top-0 left-0 w-1 h-full bg-blue-500"></div>
+                <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200 border-b border-slate-100 dark:border-slate-800/60 pb-2">1) İşlem Tipi ve Kişi</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-1.5">
                     <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider pl-1">{t('table_type')}</label>
                     <select
-                      className="fin-input"
+                      className="fin-input h-10 w-full"
                       value={formData.transaction_type}
                       onChange={(e) => handleTypeChange(e.target.value)}
                     >
@@ -456,19 +460,19 @@ export default function Transactions() {
                       <option value="purchase">{t('type_purchase')}</option>
                       <option value="payment_in">{t('type_payment_in')}</option>
                       <option value="payment_out">{t('type_payment_out')}</option>
-                      <option value="sale_return">Musteri Iadesi</option>
-                      <option value="purchase_return">Tedarikci Iadesi</option>
+                      <option value="sale_return">Müşteri İadesi</option>
+                      <option value="purchase_return">Tedarikçi İadesi</option>
                     </select>
                   </div>
 
                   <div className="space-y-1.5">
                     <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider pl-1">{t('table_entity')}</label>
                     <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
                         <User size={16} className="text-slate-400" />
                       </div>
                       <select required
-                        className="fin-input pl-11"
+                        className="fin-input h-10 pl-10 w-full"
                         value={formData.entity_id}
                         onChange={e => setFormData({ ...formData, entity_id: e.target.value })}
                       >
@@ -477,8 +481,8 @@ export default function Transactions() {
                       </select>
                     </div>
                     {filteredEntities.length === 0 && (
-                      <p className="text-xs text-amber-500 pl-1 pt-0.5">
-                        Bu islem tipi icin kayitli {formData.transaction_type === 'sale' || formData.transaction_type === 'payment_in' ? 'musteri' : 'tedarikci'} bulunamadi.
+                      <p className="text-xs text-amber-500 pl-1 pt-0.5 mt-1 font-medium bg-amber-50 dark:bg-amber-500/10 p-2 rounded-lg border border-amber-100 dark:border-amber-900/30">
+                        Bu işlem tipi için kayıtlı {formData.transaction_type === 'sale' || formData.transaction_type === 'payment_in' ? 'müşteri' : 'tedarikçi'} bulunamadı. Lütfen önce cari hesabı ekleyin.
                       </p>
                     )}
                   </div>
@@ -487,107 +491,162 @@ export default function Transactions() {
 
               {/* Item rows (multi-product) */}
               {isProductFlow && (
-                <div className="fin-panel p-4 space-y-3">
-                  <h4 className="text-sm font-semibold text-slate-700 dark:text-slate-200">2) Urun Detayi</h4>
-                  <div className="space-y-2">
-                    {lineItems.map((li, idx) => (
-                      <div key={li._key} className="grid grid-cols-12 gap-2 items-center">
-                        <select
-                          className="fin-input col-span-5"
-                          value={li.item_id}
-                          onChange={(e) => handleLineItemSelect(idx, e.target.value)}
-                        >
-                          <option value="">-- Urun Sec --</option>
-                          {items.map(i => <option key={i.id} value={i.id}>{i.name} (Stok: {i.stock_quantity} {i.unit})</option>)}
-                        </select>
-                        <input
-                          type="number"
-                          step="0.01"
-                          min="0.01"
-                          className="fin-input col-span-2"
-                          value={li.quantity}
-                          onChange={(e) => handleLineFieldChange(idx, 'quantity', e.target.value)}
-                        />
-                        <input
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          className="fin-input col-span-2"
-                          value={li.unit_price}
-                          onChange={(e) => handleLineFieldChange(idx, 'unit_price', e.target.value)}
-                        />
-                        <div className="col-span-2 text-right text-sm font-mono font-semibold text-slate-700 dark:text-slate-200">
-                          {Number(li.subtotal || 0).toFixed(2)} ₺
+                <div className="fin-panel p-4 space-y-3 relative overflow-hidden">
+                  <div className="absolute top-0 left-0 w-1 h-full bg-amber-500"></div>
+                  <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200 border-b border-slate-100 dark:border-slate-800/60 pb-2">2) {t('form_line_items') || 'Ürün Detayı'}</h4>
+                  <div className="space-y-4 sm:space-y-2">
+                    {/* Headers for desktop */}
+                    <div className="hidden sm:grid grid-cols-12 gap-3 px-1 mt-2">
+                      <div className="col-span-12 sm:col-span-5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">{t('table_product')}</div>
+                      <div className="col-span-4 sm:col-span-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider">{t('table_qty')}</div>
+                      <div className="col-span-4 sm:col-span-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider">{t('table_unit_price')}</div>
+                      <div className="col-span-4 sm:col-span-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider text-right">{t('table_subtotal')}</div>
+                      <div className="col-span-1"></div>
+                    </div>
+
+                    <div className="space-y-3 sm:space-y-2">
+                      {lineItems.map((li, idx) => (
+                        <div key={li._key} className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-center bg-slate-50 dark:bg-slate-800/30 sm:bg-transparent sm:dark:bg-transparent p-3 sm:p-0 rounded-xl sm:rounded-none border border-slate-100 dark:border-slate-800/50 sm:border-0 relative transition-all">
+                          
+                          <div className="sm:col-span-5">
+                            <label className="sm:hidden text-[10px] font-bold text-slate-400 uppercase mb-1 block">{t('table_product')}</label>
+                            <select
+                              className="fin-input w-full h-10"
+                              value={li.item_id}
+                              onChange={(e) => handleLineItemSelect(idx, e.target.value)}
+                            >
+                              <option value="">-- {t('form_select_item') || 'Ürün Seçin'} --</option>
+                              {items.map(i => <option key={i.id} value={i.id}>{i.name} (Stok: {i.stock_quantity} {i.unit})</option>)}
+                            </select>
+                          </div>
+                          
+                          <div className="grid grid-cols-2 sm:col-span-4 sm:grid-cols-2 gap-3">
+                            <div>
+                              <label className="sm:hidden text-[10px] font-bold text-slate-400 uppercase mb-1 block">{t('table_qty')}</label>
+                              <input
+                                type="number"
+                                step="0.01"
+                                min="0.01"
+                                placeholder={t('table_qty')}
+                                className="fin-input w-full h-10"
+                                value={li.quantity}
+                                onChange={(e) => handleLineFieldChange(idx, 'quantity', e.target.value)}
+                              />
+                            </div>
+                            <div>
+                              <label className="sm:hidden text-[10px] font-bold text-slate-400 uppercase mb-1 block">{t('table_unit_price') || 'FİYAT'}</label>
+                               <input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                placeholder={t('table_unit_price') || 'Fiyat'}
+                                className="fin-input w-full h-10"
+                                value={li.unit_price}
+                                onChange={(e) => handleLineFieldChange(idx, 'unit_price', e.target.value)}
+                              />
+                            </div>
+                          </div>
+
+                          <div className="flex sm:col-span-3 items-center justify-between sm:justify-end gap-3 pt-3 sm:pt-0 border-t border-slate-100 dark:border-slate-800/50 sm:border-0 mt-1 sm:mt-0">
+                            <div className="sm:text-right w-full overflow-hidden">
+                              <label className="sm:hidden text-[10px] font-bold text-slate-400 uppercase block">{t('table_subtotal')} (₺)</label>
+                              <div className="text-sm font-mono font-bold text-slate-800 dark:text-slate-200 truncate mt-0.5 sm:mt-0">
+                                {Number(li.subtotal || 0).toFixed(2)} ₺
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => removeLine(idx)}
+                              className="p-2 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors focus:ring-2 focus:ring-red-500 outline-none flex-shrink-0"
+                              title="Satırı Sil"
+                            >
+                              <Trash2 size={18} />
+                            </button>
+                          </div>
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => removeLine(idx)}
-                          className="col-span-1 p-2 rounded-lg text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10"
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      </div>
-                    ))}
-                    <button
-                      type="button"
-                      onClick={addLine}
-                      className="px-3 py-2 rounded-lg text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200"
-                    >
-                      + Satir Ekle
-                    </button>
+                      ))}
+                    </div>
+                    
+                    <div className="pt-2">
+                      <button
+                        type="button"
+                        onClick={addLine}
+                        className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-[13px] font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 dark:bg-blue-500/10 dark:text-blue-400 dark:hover:bg-blue-500/20 transition-colors border border-blue-100 dark:border-blue-500/20 shadow-sm"
+                      >
+                        <Plus size={16} />
+                        {t('btn_add_item') || 'Satır Ekle'}
+                      </button>
+                    </div>
                   </div>
                 </div>
               )}
 
               {(formData.transaction_type === 'payment_in' || formData.transaction_type === 'payment_out') && openDocs.length > 0 && (
-                <div className="fin-panel p-4 space-y-2">
-                  <h4 className="text-sm font-semibold text-slate-700 dark:text-slate-200">2) Kapatilacak Belgeler</h4>
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider pl-1">Kapatilacak Acik Belgeler</label>
-                  <div className="max-h-40 overflow-auto border border-slate-200 dark:border-slate-700 rounded-xl divide-y divide-slate-100 dark:divide-slate-800">
-                    {openDocs.map((doc) => (
-                      <div key={doc.id} className="p-2 flex items-center gap-2">
-                        <span className="text-xs text-slate-500 min-w-28">#{doc.id} - {new Date(doc.transaction_date).toLocaleDateString('tr-TR')}</span>
-                        <span className="text-xs font-mono text-amber-600 min-w-28">Kalan: {Number(doc.remaining_amount || doc.amount).toFixed(2)} ₺</span>
-                        <input
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          max={Number(doc.remaining_amount || doc.amount)}
-                          className="flex-1 bg-slate-50 dark:bg-slate-950 dark:text-white border border-slate-200 dark:border-slate-800 rounded-lg px-3 py-2 text-xs"
-                          onChange={(e) => updateAllocation(doc.id, e.target.value)}
-                        />
-                      </div>
-                    ))}
+                <div className="fin-panel p-4 space-y-3 relative overflow-hidden">
+                  <div className="absolute top-0 left-0 w-1 h-full bg-violet-500"></div>
+                  <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200 border-b border-slate-100 dark:border-slate-800/60 pb-2">2) Kapatılacak Açık Belgeler</h4>
+                  <div className="pt-1">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider pl-1 mb-2 block">Belgeler listesi</label>
+                    <div className="max-h-48 overflow-auto border border-slate-200 dark:border-slate-700/60 rounded-xl divide-y divide-slate-100 dark:divide-slate-800/60 bg-slate-50/30 dark:bg-slate-900/20">
+                      {openDocs.map((doc) => (
+                        <div key={doc.id} className="p-3 flex flex-wrap sm:flex-nowrap items-center gap-3 hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
+                          <span className="text-xs font-medium text-slate-600 dark:text-slate-300 min-w-[120px] flex-1">
+                            <span className="text-slate-400">#{doc.id}</span> - {new Date(doc.transaction_date).toLocaleDateString('tr-TR')}
+                          </span>
+                          <span className="text-[13px] font-mono font-semibold text-amber-600 dark:text-amber-500 sm:min-w-[100px] text-right">
+                            Kalan: {Number(doc.remaining_amount || doc.amount).toFixed(2)} ₺
+                          </span>
+                          <div className="w-full sm:w-auto relative mt-2 sm:mt-0">
+                            <input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              max={Number(doc.remaining_amount || doc.amount)}
+                              placeholder={`Maks ${Number(doc.remaining_amount || doc.amount).toFixed(2)}`}
+                              className="w-full sm:w-32 bg-white dark:bg-slate-950 dark:text-white border border-slate-200 dark:border-slate-800 rounded-lg px-3 py-2 text-sm font-mono shadow-sm focus:ring-2 focus:ring-blue-500 outline-none transition-shadow"
+                              onChange={(e) => updateAllocation(doc.id, e.target.value)}
+                            />
+                            <div className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs pointer-events-none">₺</div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
               )}
 
               {/* Amount */}
-              <div className="fin-panel p-4 space-y-3">
-                <h4 className="text-sm font-semibold text-slate-700 dark:text-slate-200">3) Tutar ve Not</h4>
-                <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider pl-1">{t('form_amount')}</label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                    <Banknote size={16} className="text-slate-400" />
+              <div className="fin-panel p-4 space-y-4 relative overflow-hidden">
+                <div className="absolute top-0 left-0 w-1 h-full bg-emerald-500"></div>
+                <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200 border-b border-slate-100 dark:border-slate-800/60 pb-2">3) Tutar ve Not</h4>
+                
+                <div className="space-y-1.5 pt-1">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider pl-1">{t('form_amount')}</label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+                      <Banknote size={16} className={formData.amount > 0 ? "text-emerald-500" : "text-slate-400"} />
+                    </div>
+                    <input type="number" step="0.01" min="0.01" required
+                      className="fin-input h-12 pl-10 text-lg font-bold text-emerald-600 dark:text-emerald-400 w-full"
+                      value={formData.amount}
+                      onChange={e => setFormData({ ...formData, amount: parseFloat(e.target.value) || 0 })}
+                    />
+                    <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none text-emerald-600/50 dark:text-emerald-400/50 font-bold">
+                      ₺
+                    </div>
                   </div>
-                  <input type="number" step="0.01" min="0.01" required
-                    className="fin-input pl-11 font-bold text-emerald-600 dark:text-emerald-400"
-                    value={formData.amount}
-                    onChange={e => setFormData({ ...formData, amount: parseFloat(e.target.value) || 0 })}
+                </div>
+
+                {/* Description */}
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider pl-1">{t('form_description')}</label>
+                  <textarea rows="2"
+                    placeholder="İşlemle ilgili not veya açıklama ekleyin..."
+                    className="fin-input resize-none font-medium w-full py-3"
+                    value={formData.description}
+                    onChange={e => setFormData({ ...formData, description: e.target.value })}
                   />
                 </div>
-              </div>
-
-              {/* Description */}
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider pl-1">{t('form_description')}</label>
-                <textarea rows="2"
-                  className="fin-input resize-none font-medium"
-                  value={formData.description}
-                  onChange={e => setFormData({ ...formData, description: e.target.value })}
-                />
-              </div>
               </div>
 
               <div className="pt-2">

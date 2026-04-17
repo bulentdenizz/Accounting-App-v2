@@ -117,8 +117,7 @@ const resources = {
       "days": "Gün",
       "custom_date": "Özel Tarih",
       "no_due_date": "Vadesiz",
-      "btn_print": "Yazdır / PDF",
-      "btn_update": "Güncelle"
+      "btn_print": "Yazdır / PDF"
     }
   },
   en: {
@@ -235,8 +234,7 @@ const resources = {
       "days": "Day",
       "custom_date": "Custom Date",
       "no_due_date": "No Due Date",
-      "btn_print": "Print / PDF",
-      "btn_update": "Update"
+      "btn_print": "Print / PDF"
     }
   }
 };

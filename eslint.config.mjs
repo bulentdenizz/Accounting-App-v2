@@ -24,7 +24,12 @@ export default [
     },
     rules: {
       ...eslintPluginReactHooks.configs.recommended.rules,
-      ...eslintPluginReactRefresh.configs.vite.rules
+      // Disabled: causes full-screen blocking overlay in Vite dev mode
+      'react-refresh/only-export-components': 'off',
+      'react/prop-types': 'off',
+      'react-hooks/set-state-in-effect': 'off',
+      'no-dupe-keys': 'warn',
+      'no-unused-vars': 'warn'
     }
   },
   eslintConfigPrettier

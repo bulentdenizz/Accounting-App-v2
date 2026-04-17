@@ -54,19 +54,21 @@ export default function Sidebar() {
               ${!isSidebarOpen && 'justify-center'}
             `}
           >
-            <div className="shrink-0 transition-transform duration-200 group-hover:scale-110">
-              {item.ikon}
-            </div>
-            {isSidebarOpen && (
+            {({ isActive }) => (
               <>
-                <span className="ml-3 text-sm whitespace-nowrap flex-1">{item.etiket}</span>
-                <ChevronRight className={`w-4 h-4 transition-all duration-300 opacity-0 group-hover:opacity-100 ${isSidebarOpen ? 'translate-x-0' : 'translate-x-2'}`} />
+                <div className="shrink-0 transition-transform duration-200 group-hover:scale-110 relative">
+                  {item.ikon}
+                  {isActive && isSidebarOpen && (
+                    <span className="absolute -left-4 top-1/2 -translate-y-1/2 w-1 h-4 bg-emerald-600 rounded-r-full" />
+                  )}
+                </div>
+                {isSidebarOpen && (
+                  <>
+                    <span className="ml-3 text-sm whitespace-nowrap flex-1">{item.etiket}</span>
+                    <ChevronRight className="w-4 h-4 transition-all duration-300 opacity-0 group-hover:opacity-100" />
+                  </>
+                )}
               </>
-            )}
-            
-            {/* Active Indicator Pin */}
-            {({ isActive }) => isActive && isSidebarOpen && (
-              <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-emerald-600 rounded-r-full" />
             )}
           </NavLink>
         ))}
