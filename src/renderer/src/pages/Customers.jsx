@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Plus, X, Phone, AlignLeft, Search, Pencil, Trash2, FileText } from 'lucide-react';
+import { Plus, X, Phone, AlignLeft, Search, Pencil, Trash2, FileText, Banknote } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import InvoiceModal from '../components/InvoiceModal';
 import StatementModal from '../components/StatementModal';
+import PaymentModal from '../components/PaymentModal';
 
 export default function Customers() {
   const { t } = useTranslation();
@@ -14,6 +15,7 @@ export default function Customers() {
   const [editingId, setEditingId] = useState(null);
   const [invoiceTarget, setInvoiceTarget] = useState(null); // customer for invoice modal
   const [statementTarget, setStatementTarget] = useState(null);
+  const [paymentTarget, setPaymentTarget] = useState(null);
 
   const emptyForm = { title: '', phone: '', type: 'Customer', address: '' };
   const [formData, setFormData] = useState(emptyForm);
@@ -188,12 +190,19 @@ export default function Customers() {
                             >
                                <FileText size={18} />
                             </button>
+                            <button
+                               onClick={() => setPaymentTarget(m)}
+                               className="p-2 text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 rounded-lg transition-colors"
+                               title="Tahsilat Yap"
+                            >
+                               <Banknote size={18} />
+                            </button>
                             <button onClick={() => handleEdit(m)} className="p-2 text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-500/10 rounded-lg transition-colors" title={t('btn_update')}>
                                <Pencil size={18} />
-                            </button>
-                            <button onClick={() => handleDelete(m.id, m.title)} className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-colors" title="Delete">
+                             </button>
+                             <button onClick={() => handleDelete(m.id, m.title)} className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-colors" title="Delete">
                                <Trash2 size={18} />
-                            </button>
+                             </button>
                          </div>
                       </td>
                     </tr>
@@ -279,6 +288,14 @@ export default function Customers() {
         <StatementModal
           entity={statementTarget}
           onClose={() => setStatementTarget(null)}
+        />
+      )}
+      {paymentTarget && (
+        <PaymentModal
+          entity={paymentTarget}
+          type="payment_in"
+          onClose={() => setPaymentTarget(null)}
+          onSuccess={() => { setPaymentTarget(null); fetchData(); }}
         />
       )}
     </div>

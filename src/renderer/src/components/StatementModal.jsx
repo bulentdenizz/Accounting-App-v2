@@ -44,6 +44,7 @@ export default function StatementModal({ entity, onClose }) {
                     <th className="px-4 py-3">Tarih</th>
                     <th className="px-4 py-3">Tur</th>
                     <th className="px-4 py-3 text-right">Tutar</th>
+                    <th className="px-4 py-3 text-right">Kalan</th>
                     <th className="px-4 py-3">Not</th>
                   </tr>
                 </thead>
@@ -53,6 +54,9 @@ export default function StatementModal({ entity, onClose }) {
                       <td className="px-4 py-3 text-xs">{new Date(m.transaction_date).toLocaleString('tr-TR')}</td>
                       <td className="px-4 py-3 text-xs">{m.transaction_type}</td>
                       <td className="px-4 py-3 text-right text-sm font-mono">{Number(m.amount).toFixed(2)} ₺</td>
+                      <td className="px-4 py-3 text-right text-sm font-mono text-amber-600">
+                        {m.remaining_amount !== null && m.remaining_amount !== undefined ? `${Number(m.remaining_amount).toFixed(2)} ₺` : '-'}
+                      </td>
                       <td className="px-4 py-3 text-xs">{m.description || '-'}</td>
                     </tr>
                   ))}

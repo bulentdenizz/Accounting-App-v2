@@ -12,6 +12,8 @@ import Inventory from './pages/Inventory';
 import Transactions from './pages/Transactions';
 import DueList from './pages/DueList';
 import Settings from './pages/Settings';
+import StockMovements from './pages/StockMovements';
+import Reports from './pages/Reports';
 
 // Route guard: Redirects to Login if user is not authenticated
 function ProtectedRoute({ children }) {
@@ -52,8 +54,10 @@ function MainApp() {
           <Route path="musteriler" element={<Customers />} /> {/* Müşteriler sayfası */}
           <Route path="tedarikciler" element={<Suppliers />} /> {/* Tedarikçiler sayfası */}
           <Route path="envanter" element={<Inventory />} /> {/* Stok sayfası */}
+          <Route path="stok-hareketleri" element={<StockMovements />} />
           <Route path="islemler" element={<Transactions />} /> {/* İşlemler sayfası */}
           <Route path="vadeler" element={<DueList />} />
+          <Route path="raporlar" element={<Reports />} />
           <Route path="ayarlar" element={<Settings />} />
         </Route>
 

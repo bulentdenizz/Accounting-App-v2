@@ -20,6 +20,10 @@ const api = {
     delete: (id) => ipcRenderer.invoke('api:items:delete', id),
     bulkUpdatePrice: (data) => ipcRenderer.invoke('api:items:bulkUpdatePrice', data)
   },
+  inventory: {
+    getMovements: (params) => ipcRenderer.invoke('api:inventory:getMovements', params),
+    adjustStock: (data) => ipcRenderer.invoke('api:inventory:adjustStock', data)
+  },
   transactions: {
     getAll: () => ipcRenderer.invoke('api:transactions:getAll'),
     getPage: (params) => ipcRenderer.invoke('api:transactions:getPage', params),
@@ -33,6 +37,10 @@ const api = {
   },
   dashboard: {
     getStats: () => ipcRenderer.invoke('api:dashboard:getStats')
+  },
+  reports: {
+    getStats: (dateRange) => ipcRenderer.invoke('api:reports:getStats', dateRange),
+    getInventoryValue: () => ipcRenderer.invoke('api:reports:getInventoryValue')
   },
   settings: {
     getAll: () => ipcRenderer.invoke('api:settings:getAll'),

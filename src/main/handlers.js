@@ -1,6 +1,7 @@
 import { getDb } from './db';
 import { ipcMain } from 'electron';
 import crypto from 'crypto';
+import { generateInvoiceNumber } from './services/invoice-numbering.service.js';
 
 // Frontend (React) sanki bir Web API'ye bağlanıyormuş gibi bu olayları (events) çağıracak.
 export function setupHandlers() {
@@ -87,6 +88,7 @@ export function setupHandlers() {
         WHERE entity_id = ?
           AND transaction_type = ?
           AND status IN ('open', 'partial')
+          AND is_cancelled = 0
         ORDER BY COALESCE(due_date, transaction_date) ASC, id ASC
       `).all(entityId, targetType);
       let remaining = Number(paymentAmount);
@@ -142,25 +144,63 @@ export function setupHandlers() {
     }
   };
 
-  const applyStockImpact = (db, txType, lineItems) => {
+  const applyStockImpact = (db, txType, lineItems, txId = null) => {
     if (!Array.isArray(lineItems) || lineItems.length === 0) return;
-    for (const lineItem of lineItems) {
-      if (!lineItem.item_id) continue;
-      const delta = stockDeltaByType(txType, lineItem.quantity);
-      if (!delta) continue;
-      db.prepare('UPDATE items SET stock_quantity = stock_quantity + ? WHERE id = ?')
-        .run(delta, lineItem.item_id);
-    }
-  };
+    
+    const movementTypeMap = {
+      sale: 'sale_out',
+      purchase: 'purchase_in',
+      sale_return: 'return_in',
+      purchase_return: 'return_out'
+    };
+    const movementType = movementTypeMap[txType];
+    if (!movementType) return;
 
-  const reverseStockImpact = (db, txType, lineItems) => {
-    if (!Array.isArray(lineItems) || lineItems.length === 0) return;
     for (const li of lineItems) {
       if (!li.item_id) continue;
       const delta = stockDeltaByType(txType, li.quantity);
-      if (!delta) continue;
-      db.prepare('UPDATE items SET stock_quantity = stock_quantity - ? WHERE id = ?')
-        .run(delta, li.item_id);
+      if (delta === 0) continue;
+
+      const currentItem = db.prepare('SELECT stock_quantity, name FROM items WHERE id = ?').get(li.item_id);
+      if (!currentItem) throw new Error(`Ürün bulunamadı: ${li.item_id}`);
+
+      const balanceAfter = Number(currentItem.stock_quantity) + delta;
+
+      if (balanceAfter < 0 && (txType === 'sale' || txType === 'purchase_return')) {
+        throw new Error(`Yetersiz stok: "${currentItem.name}". Mevcut: ${currentItem.stock_quantity}, İstenen: ${li.quantity}`);
+      }
+
+      db.prepare('UPDATE items SET stock_quantity = ? WHERE id = ?').run(balanceAfter, li.item_id);
+
+      db.prepare(`
+        INSERT INTO stock_movements 
+          (transaction_id, item_id, movement_type, quantity_change, balance_after, unit_price)
+        VALUES (?, ?, ?, ?, ?, ?)
+      `).run(txId, li.item_id, movementType, delta, balanceAfter, li.unit_price || null);
+    }
+  };
+
+  const reverseStockImpact = (db, txType, lineItems, txId = null) => {
+    if (!Array.isArray(lineItems) || lineItems.length === 0) return;
+    
+    for (const li of lineItems) {
+      if (!li.item_id) continue;
+      const originalDelta = stockDeltaByType(txType, li.quantity);
+      if (originalDelta === 0) continue;
+      
+      const reverseDelta = -originalDelta;
+      const currentItem = db.prepare('SELECT stock_quantity, name FROM items WHERE id = ?').get(li.item_id);
+      if (!currentItem) continue;
+
+      const balanceAfter = Number(currentItem.stock_quantity) + reverseDelta;
+
+      db.prepare('UPDATE items SET stock_quantity = ? WHERE id = ?').run(balanceAfter, li.item_id);
+
+      db.prepare(`
+        INSERT INTO stock_movements 
+          (transaction_id, item_id, movement_type, quantity_change, balance_after, unit_price, notes)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `).run(txId, li.item_id, 'manual_adj', reverseDelta, balanceAfter, li.unit_price || null, 'İşlem İptali / Geri Alma');
     }
   };
 
@@ -362,6 +402,77 @@ export function setupHandlers() {
     }
   });
 
+  ipcMain.handle('api:inventory:adjustStock', async (event, { item_id, new_quantity, reason }) => {
+    const db = getDb();
+    const item = db.prepare('SELECT * FROM items WHERE id = ?').get(item_id);
+    if (!item) throw new Error('Ürün bulunamadı.');
+
+    const newQtyNum = Number(new_quantity);
+    if (isNaN(newQtyNum) || newQtyNum < 0) throw new Error('Geçersiz miktar.');
+
+    const delta = newQtyNum - Number(item.stock_quantity);
+
+    const performAdjustment = db.transaction(() => {
+      db.prepare('UPDATE items SET stock_quantity = ? WHERE id = ?')
+        .run(newQtyNum, item_id);
+
+      db.prepare(`
+        INSERT INTO stock_movements 
+          (item_id, movement_type, quantity_change, balance_after, unit_price, notes)
+        VALUES (?, 'manual_adj', ?, ?, ?, ?)
+      `).run(item_id, delta, newQtyNum, item.unit_price, reason || 'Manuel sayım düzeltmesi');
+    });
+
+    try {
+      performAdjustment();
+      return { success: true };
+    } catch (err) {
+      console.error('Manual stock adjustment error:', err);
+      throw err;
+    }
+  });
+
+  ipcMain.handle('api:inventory:getMovements', async (event, { item_id, limit = 50, offset = 0 } = {}) => {
+    try {
+      const db = getDb();
+      let query = `
+        SELECT sm.*, 
+               i.name as item_name, i.unit as item_unit,
+               t.invoice_number, t.transaction_date,
+               e.title as entity_name
+        FROM stock_movements sm
+        JOIN items i ON sm.item_id = i.id
+        LEFT JOIN transactions t ON sm.transaction_id = t.id
+        LEFT JOIN entities e ON t.entity_id = e.id
+      `;
+      const params = [];
+
+      if (item_id) {
+        query += ` WHERE sm.item_id = ? `;
+        params.push(item_id);
+      }
+
+      query += ` ORDER BY sm.created_at DESC LIMIT ? OFFSET ? `;
+      params.push(limit, offset);
+
+      const movements = db.prepare(query).all(...params);
+
+      // Get total count
+      let countQuery = `SELECT COUNT(*) as total FROM stock_movements`;
+      let countParams = [];
+      if (item_id) {
+        countQuery += ` WHERE item_id = ?`;
+        countParams.push(item_id);
+      }
+      const totalCount = db.prepare(countQuery).get(...countParams).total;
+
+      return { data: movements, totalCount };
+    } catch (err) {
+      console.error('Error fetching stock movements:', err);
+      throw err;
+    }
+  });
+
   // ==================
   // TRANSACTIONS / LEDGER SERVICES
   // ==================
@@ -373,6 +484,7 @@ export function setupHandlers() {
         FROM transactions t
         LEFT JOIN entities e ON t.entity_id = e.id
         LEFT JOIN users u ON t.user_id = u.id
+        WHERE t.is_cancelled = 0
         ORDER BY t.transaction_date DESC
       `).all();
     } catch (err) {
@@ -389,13 +501,14 @@ export function setupHandlers() {
         FROM transactions t
         LEFT JOIN entities e ON t.entity_id = e.id
         LEFT JOIN users u ON t.user_id = u.id
+        WHERE t.is_cancelled = 0
         ORDER BY t.transaction_date DESC
         LIMIT ? OFFSET ?
       `).all(limit, offset);
 
-      const totalCount = db.prepare('SELECT COUNT(*) AS c FROM transactions').get().c;
-      const cashIn = db.prepare("SELECT COALESCE(SUM(amount), 0) AS c FROM transactions WHERE transaction_type = 'payment_in'").get().c;
-      const cashOut = db.prepare("SELECT COALESCE(SUM(amount), 0) AS c FROM transactions WHERE transaction_type = 'payment_out'").get().c;
+      const totalCount = db.prepare('SELECT COUNT(*) AS c FROM transactions WHERE is_cancelled = 0').get().c;
+      const cashIn = db.prepare("SELECT COALESCE(SUM(amount), 0) AS c FROM transactions WHERE transaction_type = 'payment_in' AND is_cancelled = 0").get().c;
+      const cashOut = db.prepare("SELECT COALESCE(SUM(amount), 0) AS c FROM transactions WHERE transaction_type = 'payment_out' AND is_cancelled = 0").get().c;
 
       return { data, totalCount, cashInTotal: cashIn, cashOutTotal: cashOut };
     } catch (err) {
@@ -429,10 +542,18 @@ export function setupHandlers() {
     if (amount <= 0) throw new Error('Amount must be greater than 0');
     assertStockAvailability(db, txType, lineItems);
 
+    const taxAmount = lineItems.reduce((sum, li) => {
+      const base = Number(li.quantity) * Number(li.unit_price);
+      return sum + base * (Number(li.tax_rate || 0) / 100);
+    }, 0);
+    const amountExclTax = amount - taxAmount;
+
     const transaction = db.transaction((txData) => {
+      const invNum = generateInvoiceNumber(db, txType);
+      
       const insertTx = db.prepare(`
-        INSERT INTO transactions (entity_id, transaction_type, amount, due_date, description, user_id, status, remaining_amount)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO transactions (entity_id, transaction_type, amount, amount_excl_tax, tax_amount, invoice_number, due_date, description, user_id, status, remaining_amount)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `);
       const startingStatus = (txType === 'sale' || txType === 'purchase') ? 'open' : 'closed';
       const startingRemaining = (txType === 'sale' || txType === 'purchase') ? amount : 0;
@@ -440,6 +561,9 @@ export function setupHandlers() {
         txData.entity_id,
         txType,
         amount,
+        amountExclTax,
+        taxAmount,
+        invNum,
         txData.due_date || null,
         txData.description || null,
         txData.user_id || null,
@@ -467,7 +591,7 @@ export function setupHandlers() {
         }
       }
 
-      applyStockImpact(db, txType, lineItems);
+      applyStockImpact(db, txType, lineItems, newTxId);
       applyBalanceImpact(db, txData.entity_id, txType, amount);
 
       if (txType === 'payment_in' || txType === 'payment_out') {
@@ -497,16 +621,27 @@ export function setupHandlers() {
   ipcMain.handle('api:transactions:update', async (event, data) => {
     const db = getDb();
     const oldId = data.id;
-    const oldTx = db.prepare('SELECT * FROM transactions WHERE id = ?').get(oldId);
-    if (!oldTx) throw new Error("Transaction not found");
+    const oldTx = db.prepare('SELECT * FROM transactions WHERE id = ? AND is_cancelled = 0').get(oldId);
+    if (!oldTx) throw new Error("Transaction not found or cancelled");
+
+    if ((oldTx.transaction_type === 'sale' || oldTx.transaction_type === 'purchase') && Number(oldTx.remaining_amount) !== Number(oldTx.amount)) {
+      throw new Error("Bu belgede tahsilat/ödeme işlemi var. Güncellemeden önce ödemeleri kaldırın.");
+    }
+
     const newType = normalizeType(data.transaction_type);
     const newItems = normalizeLineItems(data);
     const newAmount = Number(data.amount || 0);
     if (newAmount <= 0) throw new Error('Amount must be greater than 0');
 
+    const newTaxAmount = newItems.reduce((sum, li) => {
+      const base = Number(li.quantity) * Number(li.unit_price);
+      return sum + base * (Number(li.tax_rate || 0) / 100);
+    }, 0);
+    const newAmountExclTax = newAmount - newTaxAmount;
+
     const updateTransaction = db.transaction((txData) => {
       const oldLineItems = db.prepare('SELECT * FROM transaction_items WHERE transaction_id = ?').all(oldId);
-      reverseStockImpact(db, oldTx.transaction_type, oldLineItems);
+      reverseStockImpact(db, oldTx.transaction_type, oldLineItems, oldId);
       reverseBalanceImpact(db, oldTx.entity_id, oldTx.transaction_type, oldTx.amount);
 
       const allocationLinks = db.prepare(`
@@ -521,12 +656,14 @@ export function setupHandlers() {
 
       db.prepare(`
         UPDATE transactions 
-        SET entity_id = ?, transaction_type = ?, amount = ?, due_date = ?, description = ?, remaining_amount = ?, status = ?
+        SET entity_id = ?, transaction_type = ?, amount = ?, amount_excl_tax = ?, tax_amount = ?, due_date = ?, description = ?, remaining_amount = ?, status = ?
         WHERE id = ?
       `).run(
         txData.entity_id,
         newType,
         newAmount,
+        newAmountExclTax,
+        newTaxAmount,
         txData.due_date || null,
         txData.description || null,
         (newType === 'sale' || newType === 'purchase') ? newAmount : 0,
@@ -544,7 +681,7 @@ export function setupHandlers() {
       for (const li of newItems) {
         insertItem.run(oldId, li.item_id || null, li.item_name, li.quantity, li.unit_price, li.tax_rate || 0, li.subtotal);
       }
-      applyStockImpact(db, newType, newItems);
+      applyStockImpact(db, newType, newItems, oldId);
       applyBalanceImpact(db, txData.entity_id, newType, newAmount);
 
       if (newType === 'payment_in' || newType === 'payment_out') {
@@ -570,14 +707,21 @@ export function setupHandlers() {
     }
   });
 
-  ipcMain.handle('api:transactions:delete', async (event, id) => {
+  ipcMain.handle('api:transactions:delete', async (event, payload) => {
     const db = getDb();
-    const tx = db.prepare("SELECT * FROM transactions WHERE id = ?").get(id);
-    if (!tx) throw new Error("Transaction not found");
+    const id = typeof payload === 'object' ? payload.id : payload;
+    const reason = typeof payload === 'object' ? payload.reason : 'Kullanıcı tarafından silindi';
 
-    const reverseTransaction = db.transaction(() => {
+    const tx = db.prepare("SELECT * FROM transactions WHERE id = ? AND is_cancelled = 0").get(id);
+    if (!tx) throw new Error("İşlem bulunamadı veya zaten iptal edilmiş");
+
+    if ((tx.transaction_type === 'sale' || tx.transaction_type === 'purchase') && Number(tx.remaining_amount) !== Number(tx.amount)) {
+      throw new Error("Bu belgede tahsilat/ödeme işlemi var. İptal etmeden önce ödemeleri silin.");
+    }
+
+    const cancelTransaction = db.transaction(() => {
       const lineItems = db.prepare("SELECT * FROM transaction_items WHERE transaction_id = ?").all(id);
-      reverseStockImpact(db, tx.transaction_type, lineItems);
+      reverseStockImpact(db, tx.transaction_type, lineItems, id);
       reverseBalanceImpact(db, tx.entity_id, tx.transaction_type, tx.amount);
 
       const links = db.prepare(`
@@ -590,12 +734,18 @@ export function setupHandlers() {
         updateDocumentState(db, link.target_transaction_id);
       }
 
-      db.prepare("DELETE FROM transaction_items WHERE transaction_id = ?").run(id);
-      db.prepare("DELETE FROM transactions WHERE id = ?").run(id);
+      db.prepare(`
+        UPDATE transactions 
+        SET is_cancelled = 1, 
+            cancelled_at = CURRENT_TIMESTAMP,
+            cancel_reason = ?,
+            status = 'cancelled'
+        WHERE id = ?
+      `).run(reason, id);
     });
 
     try {
-      reverseTransaction();
+      cancelTransaction();
       return { success: true };
     } catch (err) {
       console.error("Delete transaction failed:", err);
@@ -613,6 +763,7 @@ export function setupHandlers() {
         WHERE entity_id = ?
           AND transaction_type = ?
           AND status IN ('open', 'partial')
+          AND is_cancelled = 0
         ORDER BY COALESCE(due_date, transaction_date) ASC, id ASC
       `).all(entity_id, docType);
     } catch (err) {
@@ -632,6 +783,7 @@ export function setupHandlers() {
         WHERE t.transaction_type IN ('sale', 'purchase')
           AND t.status IN ('open', 'partial')
           AND t.due_date IS NOT NULL
+          AND t.is_cancelled = 0
         ORDER BY t.due_date ASC, t.id ASC
       `).all();
     } catch (err) {
@@ -669,7 +821,7 @@ export function setupHandlers() {
           END
         ), 0) AS net
         FROM transactions 
-        WHERE date(transaction_date) = date('now', 'localtime')
+        WHERE date(transaction_date) = date('now', 'localtime') AND is_cancelled = 0
       `).get();
 
       // Son 7 Günlük Tablo
@@ -680,7 +832,7 @@ export function setupHandlers() {
           transaction_type as type, 
           SUM(amount) as amt 
         FROM transactions 
-        WHERE date(transaction_date) >= date('now', '-6 days', 'localtime')
+        WHERE date(transaction_date) >= date('now', '-6 days', 'localtime') AND is_cancelled = 0
         GROUP BY date(transaction_date), transaction_type
       `).all();
 
@@ -689,6 +841,7 @@ export function setupHandlers() {
         SELECT t.*, e.title as entity_name
         FROM transactions t
         LEFT JOIN entities e ON t.entity_id = e.id
+        WHERE t.is_cancelled = 0
         ORDER BY t.transaction_date DESC
         LIMIT 5
       `).all();
@@ -696,12 +849,12 @@ export function setupHandlers() {
       // Önceki Hafta Satış Hacmi (Basit trend için)
       const thisWeekSales = db.prepare(`
         SELECT COALESCE(SUM(amount), 0) as total FROM transactions 
-        WHERE transaction_type = 'sale' AND date(transaction_date) >= date('now', '-7 days', 'localtime')
+        WHERE transaction_type = 'sale' AND date(transaction_date) >= date('now', '-7 days', 'localtime') AND is_cancelled = 0
       `).get().total;
 
       const lastWeekSales = db.prepare(`
         SELECT COALESCE(SUM(amount), 0) as total FROM transactions 
-        WHERE transaction_type = 'sale' AND date(transaction_date) >= date('now', '-14 days', 'localtime') AND date(transaction_date) < date('now', '-7 days', 'localtime')
+        WHERE transaction_type = 'sale' AND date(transaction_date) >= date('now', '-14 days', 'localtime') AND date(transaction_date) < date('now', '-7 days', 'localtime') AND is_cancelled = 0
       `).get().total;
 
       let salesTrend = 0;
@@ -948,6 +1101,116 @@ export function setupHandlers() {
 
 
 
+
+  // ==================
+  // REPORT SERVICES
+  // ==================
+  ipcMain.handle('api:reports:getStats', async (event, { startDate, endDate }) => {
+    try {
+      const db = getDb();
+      const whereClause = "WHERE is_cancelled = 0 AND date(transaction_date) BETWEEN ? AND ?";
+      const params = [startDate, endDate];
+
+      // 1. Genel Ciro ve KDV Özetleri
+      const summary = db.prepare(`
+        SELECT 
+          transaction_type,
+          SUM(amount) as total_amount,
+          SUM(amount_excl_tax) as total_excl,
+          SUM(tax_amount) as total_tax
+        FROM transactions 
+        ${whereClause}
+        GROUP BY transaction_type
+      `).all(...params);
+
+      // 2. Tahsilat/Ödeme Özeti
+      const payments = db.prepare(`
+        SELECT 
+          transaction_type,
+          SUM(amount) as total
+        FROM transactions 
+        ${whereClause}
+        AND transaction_type IN ('payment_in', 'payment_out')
+        GROUP BY transaction_type
+      `).all(...params);
+
+      // 3. Aylık KDV Trendi (Son 12 Ay)
+      const kdvTrend = db.prepare(`
+        SELECT 
+          strftime('%Y-%m', transaction_date) as month,
+          SUM(CASE WHEN transaction_type = 'sale' THEN tax_amount ELSE 0 END) as output_kdv,
+          SUM(CASE WHEN transaction_type = 'purchase' THEN tax_amount ELSE 0 END) as input_kdv
+        FROM transactions 
+        WHERE is_cancelled = 0 AND transaction_date >= date('now', '-11 months')
+        GROUP BY month
+        ORDER BY month ASC
+      `).all();
+
+      // 4. Karlılık Analizi (Basit COGS Yaklaşımı: Ortalama Alış vs Satış)
+      // Bu sorgu, satılan ürünlerin o dönemdeki toplam satış geliri ve
+      // o ürünlerin sistemdeki GENEL ortalama alış maliyeti arasındaki farkı hesaplar.
+      const profitData = db.prepare(`
+        WITH AveragePurchaseCosts AS (
+          SELECT 
+            item_id, 
+            SUM(quantity * unit_price) / NULLIF(SUM(quantity), 0) as avg_cost
+          FROM transaction_items ti
+          JOIN transactions t ON ti.transaction_id = t.id
+          WHERE t.transaction_type = 'purchase' AND t.is_cancelled = 0
+          GROUP BY item_id
+        )
+        SELECT 
+          ti.item_name,
+          SUM(ti.quantity) as total_qty,
+          SUM(ti.quantity * ti.unit_price) as total_revenue,
+          SUM(ti.quantity * COALESCE(apc.avg_cost, 0)) as total_cost
+        FROM transaction_items ti
+        JOIN transactions t ON ti.transaction_id = t.id
+        LEFT JOIN AveragePurchaseCosts apc ON ti.item_id = apc.item_id
+        WHERE t.transaction_type = 'sale' AND t.is_cancelled = 0 
+        AND date(t.transaction_date) BETWEEN ? AND ?
+        GROUP BY ti.item_name
+        ORDER BY (SUM(ti.quantity * ti.unit_price) - SUM(ti.quantity * COALESCE(apc.avg_cost, 0))) DESC
+        LIMIT 10
+      `).all(...params);
+
+      return {
+        summary,
+        payments,
+        kdvTrend,
+        profitData
+      };
+    } catch (err) {
+      console.error('Report stats error:', err);
+      throw err;
+    }
+  });
+
+  ipcMain.handle('api:reports:getInventoryValue', async () => {
+    try {
+      const db = getDb();
+      // Envanter değerini "Ortalama Alış Fiyatı * Mevcut Stok" üzerinden hesaplar
+      const result = db.prepare(`
+        WITH AverageCosts AS (
+          SELECT 
+            item_id, 
+            SUM(quantity * unit_price) / NULLIF(SUM(quantity), 0) as avg_cost
+          FROM transaction_items ti
+          JOIN transactions t ON ti.transaction_id = t.id
+          WHERE t.transaction_type = 'purchase' AND t.is_cancelled = 0
+          GROUP BY item_id
+        )
+        SELECT 
+          SUM(i.stock_quantity * COALESCE(ac.avg_cost, i.unit_price)) as total_value
+        FROM items i
+        LEFT JOIN AverageCosts ac ON i.id = ac.item_id
+      `).get();
+      return result.total_value || 0;
+    } catch (err) {
+      console.error('Inventory valuation error:', err);
+      throw err;
+    }
+  });
 
   // ==================
   // AUTH SERVICES

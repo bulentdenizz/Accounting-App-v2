@@ -3,6 +3,8 @@ import { Plus, X, Phone, AlignLeft, Search, Pencil, Trash2, FileText } from 'luc
 import { useTranslation } from 'react-i18next';
 import InvoiceModal from '../components/InvoiceModal';
 import StatementModal from '../components/StatementModal';
+import PaymentModal from '../components/PaymentModal';
+import { Banknote } from 'lucide-react';
 
 export default function Suppliers() {
   const { t } = useTranslation();
@@ -14,6 +16,7 @@ export default function Suppliers() {
   const [editingId, setEditingId] = useState(null);
   const [invoiceTarget, setInvoiceTarget] = useState(null);
   const [statementTarget, setStatementTarget] = useState(null);
+  const [paymentTarget, setPaymentTarget] = useState(null);
 
   const emptyForm = { title: '', phone: '', type: 'Supplier', address: '' };
   const [formData, setFormData] = useState(emptyForm);
@@ -187,6 +190,13 @@ export default function Suppliers() {
                             >
                                <FileText size={18} />
                             </button>
+                            <button
+                               onClick={() => setPaymentTarget(m)}
+                               className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-colors"
+                               title="Ödeme Yap"
+                            >
+                               <Banknote size={18} />
+                            </button>
                             <button onClick={() => handleEdit(m)} className="p-2 text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-500/10 rounded-lg transition-colors" title={t('btn_update')}>
                                <Pencil size={18} />
                             </button>
@@ -278,6 +288,14 @@ export default function Suppliers() {
         <StatementModal
           entity={statementTarget}
           onClose={() => setStatementTarget(null)}
+        />
+      )}
+      {paymentTarget && (
+        <PaymentModal
+          entity={paymentTarget}
+          type="payment_out"
+          onClose={() => setPaymentTarget(null)}
+          onSuccess={() => { setPaymentTarget(null); fetchData(); }}
         />
       )}
     </div>

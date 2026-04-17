@@ -156,6 +156,33 @@ export function initDb() {
     )
   `).run();
 
+  // ── 9. Stok Hareketleri (Phase 2) ─────────────────────────────────────────
+  db.prepare(`
+    CREATE TABLE IF NOT EXISTS stock_movements (
+      id               INTEGER PRIMARY KEY AUTOINCREMENT,
+      transaction_id   INTEGER,
+      item_id          INTEGER NOT NULL,
+      movement_type    TEXT NOT NULL 
+                       CHECK(movement_type IN (
+                         'purchase_in',
+                         'sale_out',
+                         'return_in',
+                         'return_out',
+                         'manual_adj',
+                         'opening_stock'
+                       )),
+      quantity_change  REAL NOT NULL,
+      balance_after    REAL NOT NULL,
+      unit_price       REAL,
+      notes            TEXT,
+      created_at       DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (transaction_id) REFERENCES transactions(id),
+      FOREIGN KEY (item_id) REFERENCES items(id)
+    )
+  `).run();
+
+  db.prepare('CREATE INDEX IF NOT EXISTS idx_stock_movements_item ON stock_movements(item_id, created_at DESC)').run();
+
   // ── Geriye Dönük Uyumlu Kolon Eklemeleri (idempotent) ───────────────────
   // Mevcut bir kurulumda eksik olan kolonları ekler; yeniden çalıştırıldığında
   // zaten var olan kolonlara dokunmaz.
